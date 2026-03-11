@@ -57,8 +57,6 @@
       font-weight: 600;
       letter-spacing: 2px;
       text-transform: uppercase;
-      opacity: 0;
-      animation: fadeIn 2s ease-in-out forwards;
     }
 
     @keyframes rotation {
@@ -70,18 +68,6 @@
         transform: rotate(360deg);
       }
     }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
   </style>
 </head>
 
@@ -91,36 +77,22 @@
     <div class="logo-text">POSBARBER LUXURY</div>
   </div>
 
-  <!-- Re-agregamos flutter.js que es obligatorio para definir flutter_js -->
-  <script src="flutter.js" defer></script>
   <script src="flutter_bootstrap.js" async></script>
 
   <script>
-    // Remove loader when app starts
-    window.addEventListener('load', function () {
-      const checkInterval = setInterval(() => {
-        const appView = document.querySelector('flt-glass-pane') ||
-          document.querySelector('flutter-view') ||
-          document.querySelector('flt-scene-host');
-
-        if (appView) {
-          const loader = document.getElementById('loading-indicator');
-          if (loader) {
-            loader.style.transition = 'opacity 0.4s ease';
-            loader.style.opacity = '0';
-            setTimeout(() => loader.remove(), 400);
-          }
-          clearInterval(checkInterval);
-        }
-      }, 100);
-
-      setTimeout(() => {
+    // Detect app readiness and remove loader
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
         const loader = document.getElementById('loading-indicator');
-        if (loader && loader.style.opacity !== '0') {
-          console.error('Flutter fail to start within 10s');
+        if (loader) {
+          loader.style.transition = 'opacity 0.4s ease';
+          loader.style.opacity = '0';
+          setTimeout(() => loader.remove(), 400);
         }
-      }, 15000);
+        observer.disconnect();
+      }
     });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     // PWA Support
     let deferredPrompt;
