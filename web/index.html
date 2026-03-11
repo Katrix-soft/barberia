@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -62,25 +62,13 @@
     }
 
     @keyframes rotation {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
@@ -91,12 +79,38 @@
     <div class="logo-text">POSBARBER LUXURY</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/zxing-wasm-shim@0.0.1/dist/index.min.js"></script>
-
   <script src="flutter_bootstrap.js" async></script>
 
   <script>
-    // PWA Installation logic
+    // Remove loader when app starts
+    window.addEventListener('load', function() {
+      // Check every 100ms if the app view appeared
+      const checkInterval = setInterval(() => {
+        const appView = document.querySelector('flt-glass-pane') || 
+                        document.querySelector('flutter-view') ||
+                        document.querySelector('flt-scene-host');
+        
+        if (appView) {
+          const loader = document.getElementById('loading-indicator');
+          if (loader) {
+            loader.style.transition = 'opacity 0.4s ease';
+            loader.style.opacity = '0';
+            setTimeout(() => loader.remove(), 400);
+          }
+          clearInterval(checkInterval);
+        }
+      }, 100);
+
+      // Security timeout: If after 10 seconds it's still loading, show a message
+      setTimeout(() => {
+        const loader = document.getElementById('loading-indicator');
+        if (loader && loader.style.opacity !== '0') {
+          console.error('Flutter fail to start within 10s');
+        }
+      }, 10000);
+    });
+
+    // PWA Support
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
@@ -113,20 +127,6 @@
       }
       return false;
     };
-
-    // Auto-remove loader when Flutter renders
-    const observer = new MutationObserver((mutations) => {
-      if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
-        const loader = document.getElementById('loading-indicator');
-        if (loader) {
-          loader.style.transition = 'opacity 0.5s ease';
-          loader.style.opacity = '0';
-          setTimeout(() => loader.remove(), 500);
-        }
-        observer.disconnect();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 
