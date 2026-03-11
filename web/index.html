@@ -6,7 +6,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Terminal de ventas premium para barberías modernas.">
+  <meta name="description" content="Posbarber LUXURY - Terminal de ventas premium.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,7 +18,7 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>Posbarber</title>
+  <title>Posbarber LUXURY</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
@@ -29,37 +29,35 @@
       overflow: hidden;
     }
 
-    .loading {
+    .loading-container {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
       width: 100vw;
-      font-family: 'Inter', sans-serif;
     }
 
     .loader {
-      width: 48px;
-      height: 48px;
-      border: 3px solid #C5A028;
-      border-bottom-color: transparent;
+      width: 60px;
+      height: 60px;
+      border: 4px solid #1A1A1A;
+      border-top: 4px solid #C5A028;
       border-radius: 50%;
-      display: inline-block;
-      box-sizing: border-box;
-      animation: rotation 1s linear infinite;
+      animation: spin 1s linear infinite;
     }
 
-    .logo-text {
-      margin-top: 20px;
+    .loader-text {
+      margin-top: 24px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       color: #C5A028;
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: 2px;
+      font-size: 14px;
+      letter-spacing: 4px;
+      font-weight: bold;
       text-transform: uppercase;
     }
 
-    @keyframes rotation {
+    @keyframes spin {
       0% {
         transform: rotate(0deg);
       }
@@ -72,45 +70,41 @@
 </head>
 
 <body>
-  <div id="loading-indicator" class="loading">
-    <span class="loader"></span>
-    <div class="logo-text">POSBARBER LUXURY</div>
+  <div id="loading" class="loading-container">
+    <div class="loader"></div>
+    <div class="loader-text">PROCESANDO ACCESO LUXURY</div>
   </div>
 
-  <script src="flutter_bootstrap.js" async></script>
-
+  <!-- This is the classic, most compatible way to load Flutter -->
+  <script src="flutter.js" defer></script>
   <script>
-    // Detect app readiness and remove loader
+    window.addEventListener('load', function (ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: null, // Avoid cache issues for now
+        },
+        onEntrypointLoaded: function (engineInitializer) {
+          engineInitializer.initializeEngine().then(function (appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+
+    // PWA & Splash Removal
     const observer = new MutationObserver(() => {
       if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
-        const loader = document.getElementById('loading-indicator');
+        const loader = document.getElementById('loading');
         if (loader) {
-          loader.style.transition = 'opacity 0.4s ease';
           loader.style.opacity = '0';
-          setTimeout(() => loader.remove(), 400);
+          loader.style.transition = 'opacity 0.5s ease-out';
+          setTimeout(() => loader.remove(), 500);
         }
         observer.disconnect();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // PWA Support
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      window.dispatchEvent(new CustomEvent('pwa-installable'));
-    });
-
-    window.installPWA = async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        return outcome === 'accepted';
-      }
-      return false;
-    };
   </script>
 </body>
 

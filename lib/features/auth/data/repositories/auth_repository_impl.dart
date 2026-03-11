@@ -5,7 +5,6 @@ import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:local_auth/local_auth.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final DatabaseHelper databaseHelper;
@@ -55,24 +54,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
     final useBiometrics = sharedPreferences.getBool('use_biometrics') ?? false;
 
+    // No prompt here for initial check, only return session if exists
+    // Biometrics should be triggered on demand in LoginScreen
     if (useBiometrics) {
-      final auth = LocalAuthentication();
-      try {
-        final isSupported = await auth.isDeviceSupported();
-        final canCheck = await auth.canCheckBiometrics;
-        if (isSupported || canCheck) {
-          final authenticated = await auth.authenticate(
-            localizedReason: 'Posbarber pide la autorización',
-          );
-          if (!authenticated) {
-            // Si cancela la biometría, pedir login normal
-            return const Right(null);
-          }
-        }
-      } catch (e) {
-        // En caso de error biométrico, regresamos al login normal
-        return const Right(null);
-      }
+      // Return null to force normal login and let LoginPage handle biometrics
+      return const Right(null);
     }
 
     try {
