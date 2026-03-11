@@ -2,13 +2,17 @@
 FROM ghcr.io/cirruslabs/flutter:3.35.7 AS build
 WORKDIR /app
 
+# Habilitar web y descargar dependencias del motor
+RUN flutter config --enable-web
+RUN flutter precache --web
+
 # Copiar configuración primero para usar el caché de Docker
 COPY pubspec.* ./
 RUN flutter pub get
 
 # Copiar el resto y construir
 COPY . .
-RUN flutter build web --release --web-renderer canvaskit
+RUN flutter build web --release --no-tree-shake-icons
 
 # Servir con Nginx Alpine
 FROM nginx:alpine
