@@ -18,7 +18,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final LocalAuthentication auth = LocalAuthentication();
@@ -72,8 +73,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final savedEmail = prefs.getString('saved_email');
     final savedPassword = prefs.getString('saved_password');
     if (savedEmail != null && savedPassword != null) {
-      _emailController.text = savedEmail;
-      _passwordController.text = savedPassword;
+      if (mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          _passwordController.text = savedPassword;
+        });
+      }
     }
   }
 
@@ -96,7 +101,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           await _loadSavedCredentials();
         }
 
-        if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+        if (_emailController.text.isNotEmpty &&
+            _passwordController.text.isNotEmpty) {
           _submitLogin();
         }
       }
@@ -121,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFF0A0A0A), // Deep Black
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
@@ -136,15 +142,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         },
         child: Stack(
           children: [
+            // Luxury Ambient Glows
             Positioned(
-              top: -100,
+              top: -150,
               right: -100,
               child: Container(
-                width: 300,
-                height: 300,
+                width: 400,
+                height: 400,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFC5A028).withOpacity(0.05),
+                  color: const Color(0xFFC5A028).withOpacity(0.08),
                 ),
               ),
             ),
@@ -152,35 +159,43 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               bottom: -150,
               left: -150,
               child: Container(
-                width: 400,
-                height: 400,
+                width: 500,
+                height: 500,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFC5A028).withOpacity(0.03),
+                  color: const Color(0xFFC5A028).withOpacity(0.05),
                 ),
               ),
             ),
-            
+
+            // Main Content
             Center(
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 40,
+                  ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 450),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // Logo Container with elevation
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1A1A1A),
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFC5A028).withOpacity(0.2),
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFFC5A028).withOpacity(0.1),
-                                blurRadius: 40,
-                                spreadRadius: 5,
+                                blurRadius: 60,
+                                spreadRadius: 10,
                               ),
                             ],
                           ),
@@ -199,48 +214,71 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
+
                         Text(
-                          'LUXURY POSBARBER',
+                          'POSBARBER LUXURY',
                           style: GoogleFonts.outfit(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
                             color: const Color(0xFFC5A028),
-                            letterSpacing: 2,
+                            letterSpacing: 3,
                           ),
+                          textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 8),
                         Text(
-                          'Excelencia en cada corte',
+                          'LA EXCELENCIA ES NUESTRO ESTÁNDAR',
                           style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: Colors.white70,
-                            letterSpacing: 1.2,
+                            fontSize: 12,
+                            color: Colors.white54,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w500,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 48),
 
-                        _buildGlassCard(
+                        // Form Card
+                        Container(
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A1A1A).withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: const Color(0xFFC5A028).withOpacity(0.2),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
+                              ),
+                            ],
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildTextField(
+                              _buildLuxuryField(
                                 controller: _emailController,
-                                label: 'Usuario o Correo',
-                                icon: Icons.person_outline,
+                                label: 'Usuario o Email',
+                                icon: Icons.person_outline_rounded,
                                 isEmail: true,
                               ),
-                              const SizedBox(height: 20),
-                              _buildTextField(
+                              const SizedBox(height: 24),
+                              _buildLuxuryField(
                                 controller: _passwordController,
                                 label: 'Contraseña',
-                                icon: Icons.lock_outline,
+                                icon: Icons.lock_outline_rounded,
                                 isPassword: true,
                                 obscureText: _obscurePassword,
-                                onSuffixIconPressed: () {
-                                  setState(() => _obscurePassword = !_obscurePassword);
+                                onSuffixTap: () {
+                                  setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  );
                                 },
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
@@ -248,38 +286,140 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   child: Text(
                                     '¿Olvidaste tu contraseña?',
                                     style: GoogleFonts.outfit(
-                                      color: const Color(0xFFC5A028),
+                                      color: const Color(
+                                        0xFFC5A028,
+                                      ).withOpacity(0.8),
                                       fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 24),
-                              
+                              const SizedBox(height: 32),
+
                               BlocBuilder<AuthBloc, AuthState>(
                                 builder: (context, state) {
-                                  return _buildGoldButton(
-                                    onPressed: state is AuthLoading ? null : _submitLogin,
-                                    isLoading: state is AuthLoading,
-                                    text: 'INICIAR SESIÓN',
+                                  final isLoading = state is AuthLoading;
+                                  return Container(
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        colors: isLoading
+                                            ? [
+                                                Colors.grey[800]!,
+                                                Colors.grey[900]!,
+                                              ]
+                                            : [
+                                                const Color(0xFFD4AF37),
+                                                const Color(0xFFC5A028),
+                                                const Color(0xFFB8860B),
+                                              ],
+                                      ),
+                                      boxShadow: [
+                                        if (!isLoading)
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFFC5A028,
+                                            ).withOpacity(0.4),
+                                            blurRadius: 20,
+                                            offset: const Offset(0, 8),
+                                          ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: isLoading
+                                          ? null
+                                          : _submitLogin,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                      ),
+                                      child: isLoading
+                                          ? const SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.black,
+                                                strokeWidth: 3,
+                                              ),
+                                            )
+                                          : Text(
+                                              'INICIAR SESIÓN',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 1.5,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                    ),
                                   );
                                 },
                               ),
                             ],
                           ),
                         ),
-                        
+
+                        // Biometric Section
                         if (_isBiometricSupported) ...[
-                          const SizedBox(height: 24),
-                          _buildBiometricButton(),
+                          const SizedBox(height: 32),
+                          InkWell(
+                            onTap: _authenticateWithBiometrics,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 24,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFC5A028,
+                                  ).withOpacity(0.3),
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                color: const Color(
+                                  0xFFC5A028,
+                                ).withOpacity(0.05),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.fingerprint_rounded,
+                                    color: Color(0xFFC5A028),
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'ACCESO BIOMÉTRICO',
+                                    style: GoogleFonts.outfit(
+                                      color: const Color(0xFFC5A028),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
-                        
-                        const SizedBox(height: 40),
+
+                        const SizedBox(height: 60),
                         Text(
-                          'v0.1.0 Premium Edition',
+                          'PREMIUM EDITION v0.1.0',
                           style: GoogleFonts.outfit(
-                            color: Colors.white24,
-                            fontSize: 12,
+                            color: Colors.white12,
+                            fontSize: 11,
+                            letterSpacing: 3,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
@@ -294,161 +434,67 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildGlassCard({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFFC5A028).withOpacity(0.15),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildTextField({
+  Widget _buildLuxuryField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool isPassword = false,
     bool isEmail = false,
     bool obscureText = false,
-    VoidCallback? onSuffixIconPressed,
+    VoidCallback? onSuffixTap,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: GoogleFonts.outfit(
-            color: const Color(0xFFC5A028),
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label.toUpperCase(),
+            style: GoogleFonts.outfit(
+              color: const Color(0xFFC5A028),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: controller,
           obscureText: obscureText,
           style: const TextStyle(color: Colors.white, fontSize: 16),
-          keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
+          keyboardType: isEmail
+              ? TextInputType.emailAddress
+              : TextInputType.text,
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFF262626),
-            prefixIcon: Icon(icon, color: Colors.white38, size: 20),
+            prefixIcon: Icon(icon, color: Colors.white38, size: 22),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
-                      obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      obscureText
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.white38,
-                      size: 20,
                     ),
-                    onPressed: onSuffixIconPressed,
+                    onPressed: onSuffixTap,
                   )
                 : null,
-            contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 20,
+              horizontal: 20,
+            ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Colors.white10),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFC5A028), width: 1.5),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFC5A028), width: 2),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildGoldButton({
-    required VoidCallback? onPressed,
-    required bool isLoading,
-    required String text,
-  }) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: onPressed == null
-            ? null
-            : const LinearGradient(
-                colors: [Color(0xFFD4AF37), Color(0xFFC5A028), Color(0xFFB8860B)],
-              ),
-        color: onPressed == null ? Colors.grey[800] : null,
-        boxShadow: [
-          if (onPressed != null)
-            BoxShadow(
-              color: const Color(0xFFC5A028).withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-              )
-            : Text(
-                text,
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
-                  color: Colors.white,
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildBiometricButton() {
-    return InkWell(
-      onTap: _authenticateWithBiometrics,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.fingerprint, color: Color(0xFFC5A028), size: 24),
-            const SizedBox(width: 12),
-            Text(
-              'BIOMETRÍA RÁPIDA',
-              style: GoogleFonts.outfit(
-                color: const Color(0xFFC5A028),
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -459,18 +505,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: const Color(0xFFC5A028).withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(30),
+          side: const BorderSide(color: Color(0xFFC5A028), width: 0.5),
         ),
         title: Text(
           'RECUPERAR ACCESO',
-          style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.bold),
+          style: GoogleFonts.outfit(
+            color: const Color(0xFFC5A028),
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Ingresa tu usuario o correo para recibir tus credenciales vía email.',
+              'Ingresa tus datos para recibir un correo de recuperación instantáneo.',
               style: GoogleFonts.outfit(color: Colors.white70),
             ),
             const SizedBox(height: 24),
@@ -478,12 +527,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               controller: emailCtrl,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Usuario o Correo',
+                labelText: 'Email o Usuario',
                 labelStyle: const TextStyle(color: Colors.white38),
                 filled: true,
                 fillColor: const Color(0xFF262626),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFC5A028))),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFC5A028)),
+                ),
               ),
             ),
           ],
@@ -491,16 +546,24 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white38)),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(color: Colors.white38),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC5A028),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              minimumSize: const Size(100, 45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () async {
               if (emailCtrl.text.isEmpty) return;
-              final userMap = await DatabaseHelper().getUserByEmailOrUsername(emailCtrl.text.trim());
+              final userMap = await DatabaseHelper().getUserByEmailOrUsername(
+                emailCtrl.text.trim(),
+              );
               if (userMap != null) {
                 final pwd = userMap['password'];
                 final email = userMap['email'];
@@ -509,23 +572,21 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   path: email,
                   queryParameters: {
                     'subject': '🔑 Recuperación de Credenciales - Posbarber',
-                    'body': 'Hola ${userMap['name']},\n\nHas solicitado recuperar tus credenciales para Posbarber.\n\nUsuario: ${userMap['username']}\nContraseña: $pwd\n\nPor favor, inicia sesión y cambia tu contraseña por seguridad.\n\nSaludos,\nEquipo Posbarber.',
+                    'body':
+                        'Hola ${userMap['name']},\n\nHas solicitado recuperar tus credenciales.\n\nUsuario: ${userMap['username']}\nContraseña: $pwd\n\nSaludos,\nEquipo Luxury Posbarber.',
                   },
                 );
-                try {
-                  await launchUrl(emailLaunchUri);
-                } catch (e) {
-                  debugPrint('Could not launch email');
-                }
+                await launchUrl(emailLaunchUri);
               }
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Se ha preparado el correo de recuperación'), behavior: SnackBarBehavior.floating),
-                );
-              }
+              if (mounted) Navigator.pop(context);
             },
-            child: const Text('ENVIAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'ENVIAR',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

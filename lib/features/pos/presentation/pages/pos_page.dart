@@ -723,11 +723,12 @@ class _PosPageState extends State<PosPage> {
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 32, 16, 16),
           child: Text(
-            'Productos y Servicios',
+            'SERVICIOS Y PRODUCTOS',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
-              letterSpacing: -1.0,
+              letterSpacing: 2.0,
+              color: Color(0xFFC5A028),
             ),
           ),
         ),
