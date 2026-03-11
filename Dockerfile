@@ -12,8 +12,8 @@ RUN flutter pub get
 
 # Copiar el resto y construir
 COPY . .
-# Usamos el modo HTML (Skia) para carga ultra rápida y máxima compatibilidad web
-RUN flutter build web --release --web-renderer html --no-tree-shake-icons
+# Usamos el modo release con configuración optimizada
+RUN flutter build web --release --no-tree-shake-icons
 
 
 
