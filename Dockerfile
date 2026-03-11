@@ -12,7 +12,9 @@ RUN flutter pub get
 
 # Copiar el resto y construir
 COPY . .
-RUN flutter build web --release --no-tree-shake-icons
+# Compilación a WASM (Súper rápida y optimizada para la versión 3.35+)
+RUN flutter build web --wasm --no-tree-shake-icons
+
 
 # Servir con Nginx Alpine
 FROM nginx:alpine
