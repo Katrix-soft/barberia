@@ -1,5 +1,5 @@
 # Construir la app de Flutter Web
-FROM instrumentisto/flutter:3.24.0 AS build
+FROM ghcr.io/cirruslabs/flutter:3.35.7 AS build
 WORKDIR /app
 
 # Copiar configuración primero para usar el caché de Docker
