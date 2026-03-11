@@ -1556,9 +1556,6 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _showSuccessDialog(BuildContext context, PosState state) {
-    final player = AudioPlayer();
-    player.play(AssetSource('audio/cash_register.mp3'));
-
     showDialog(
       context: context,
       barrierDismissible: false,
