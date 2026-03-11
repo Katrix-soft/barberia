@@ -12,8 +12,9 @@ RUN flutter pub get
 
 # Copiar el resto y construir
 COPY . .
-# Usamos Canvaskit (Estable y Premium) para evitar problemas de compatibilidad WASM
-RUN flutter build web --release --web-renderer canvaskit --no-tree-shake-icons
+# Usamos el modo HTML (Skia) para carga ultra rápida y máxima compatibilidad web
+RUN flutter build web --release --web-renderer html --no-tree-shake-icons
+
 
 
 # Servir con Nginx Alpine
