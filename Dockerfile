@@ -12,8 +12,8 @@ RUN flutter pub get
 
 # Copiar el resto y construir
 COPY . .
-# Compilación a WASM (Súper rápida y optimizada para la versión 3.35+)
-RUN flutter build web --wasm --no-tree-shake-icons
+# Usamos Canvaskit (Estable y Premium) para evitar problemas de compatibilidad WASM
+RUN flutter build web --release --web-renderer canvaskit --no-tree-shake-icons
 
 
 # Servir con Nginx Alpine
