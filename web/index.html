@@ -100,7 +100,6 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      // Notify Flutter that installation is available
       window.dispatchEvent(new CustomEvent('pwa-installable'));
     });
 
@@ -113,6 +112,20 @@
       }
       return false;
     };
+
+    // Auto-remove loader when Flutter renders
+    const observer = new MutationObserver((mutations) => {
+      if (document.querySelector('flt-glass-pane') || document.querySelector('flutter-view')) {
+        const loader = document.getElementById('loading-indicator');
+        if (loader) {
+          loader.style.transition = 'opacity 0.5s ease';
+          loader.style.opacity = '0';
+          setTimeout(() => loader.remove(), 500);
+        }
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 
