@@ -1,0 +1,147 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/database/database_helper.dart';
+import '../../../../core/error/failures.dart';
+import '../../domain/entities/user.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+
+class AuthRepositoryImpl implements AuthRepository {
+  final DatabaseHelper databaseHelper;
+  final SharedPreferences sharedPreferences;
+
+  AuthRepositoryImpl({
+    required this.databaseHelper,
+    required this.sharedPreferences,
+  });
+
+  @override
+  Future<Either<Failure, User>> login(String email, String password) async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'users',
+        where: '(email = ? OR username = ?) AND password = ?',
+        whereArgs: [email, email, password],
+      );
+
+      if (maps.isNotEmpty) {
+        final userModel = UserModel.fromMap(maps.first);
+        await sharedPreferences.setInt('user_id', userModel.id!);
+        await sharedPreferences.setString('user_name', userModel.name);
+        await sharedPreferences.setString('user_role', userModel.role.name);
+
+        return Right(userModel);
+      } else {
+        return const Left(AuthFailure('Credenciales incorrectas'));
+      }
+    } catch (e) {
+      return Left(DatabaseFailure('Error de base de datos: ${e.toString()}'));
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    await sharedPreferences.remove('user_id');
+    await sharedPreferences.remove('user_name');
+    await sharedPreferences.remove('user_role');
+  }
+
+  @override
+  Future<Either<Failure, User?>> getCheckAuth() async {
+    final userId = sharedPreferences.getInt('user_id');
+    if (userId == null) return const Right(null);
+
+    final useBiometrics = sharedPreferences.getBool('use_biometrics') ?? false;
+
+    if (useBiometrics) {
+      final auth = LocalAuthentication();
+      try {
+        final isSupported = await auth.isDeviceSupported();
+        final canCheck = await auth.canCheckBiometrics;
+        if (isSupported || canCheck) {
+          final authenticated = await auth.authenticate(
+            localizedReason: 'Posbarber pide la autorización',
+          );
+          if (!authenticated) {
+            // Si cancela la biometría, pedir login normal
+            return const Right(null);
+          }
+        }
+      } catch (e) {
+        // En caso de error biométrico, regresamos al login normal
+        return const Right(null);
+      }
+    }
+
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'users',
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+
+      if (maps.isNotEmpty) {
+        return Right(UserModel.fromMap(maps.first));
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<User>>> getUsers() async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'users',
+        orderBy: 'name ASC',
+      );
+      return Right(maps.map((m) => UserModel.fromMap(m)).toList());
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> saveUser(User user, String password) async {
+    try {
+      final db = await databaseHelper.database;
+      final userModelMap = {
+        'name': user.name,
+        'username': user.username,
+        'email': user.email,
+        'password': password,
+        'role': user.role.name,
+      };
+
+      if (user.id == null) {
+        await db.insert('users', userModelMap);
+      } else {
+        await db.update(
+          'users',
+          userModelMap,
+          where: 'id = ?',
+          whereArgs: [user.id],
+        );
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteUser(int id) async {
+    try {
+      final db = await databaseHelper.database;
+      await db.delete('users', where: 'id = ?', whereArgs: [id]);
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure(e.toString()));
+    }
+  }
+}

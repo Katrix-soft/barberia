@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  posbarber_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: posbarber_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - npm_network
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+
+networks:
+  npm_network:
+    external: true

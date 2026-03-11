@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Terminal de ventas premium para barberías modernas.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Posbarber">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>Posbarber</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      background-color: #0A0A0A;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .loader {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #C5A028;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+    }
+
+    .logo-text {
+      margin-top: 20px;
+      color: #C5A028;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0;
+      animation: fadeIn 2s ease-in-out forwards;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="loading-indicator" class="loading">
+    <span class="loader"></span>
+    <div class="logo-text">POSBARBER LUXURY</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/zxing-wasm-shim@0.0.1/dist/index.min.js"></script>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+    // PWA Installation logic
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Notify Flutter that installation is available
+      window.dispatchEvent(new CustomEvent('pwa-installable'));
+    });
+
+    window.installPWA = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        return outcome === 'accepted';
+      }
+      return false;
+    };
+  </script>
+</body>
+
+</html>
