@@ -6,6 +6,8 @@ import '../bloc/user_event.dart';
 import '../bloc/user_state.dart';
 import '../../../../core/services/email_service.dart';
 import '../../domain/entities/user.dart';
+import '../bloc/auth_bloc.dart';
+import '../bloc/auth_state.dart';
 
 class StaffPage extends StatefulWidget {
   const StaffPage({super.key});
@@ -37,8 +39,13 @@ class _StaffPageState extends State<StaffPage> {
                 backgroundColor: Colors.red,
               ),
             );
-          } else if (state.status == UserStatus.loaded) {
-            // Ya no necesitamos snackbar aquí porque lo manejamos en el botón
+          } else if (state.status == UserStatus.deleted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Colaborador eliminado correctamente'),
+                backgroundColor: Colors.black87,
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -46,33 +53,56 @@ class _StaffPageState extends State<StaffPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          final authState = context.watch<AuthBloc>().state;
+          final currentUser = authState is Authenticated ? authState.user : null;
+          final isHeadBarber = currentUser?.role == UserRole.headBarber;
+
+          // Filter users: Head Barbers only see employees
+          final visibleUsers = isHeadBarber 
+              ? state.users.where((u) => u.role == UserRole.employee).toList()
+              : state.users;
+
           return ListView.builder(
-            itemCount: state.users.length,
+            itemCount: visibleUsers.length,
             itemBuilder: (context, index) {
-              final user = state.users[index];
+              final user = visibleUsers[index];
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: user.role == UserRole.admin
                       ? Colors.deepPurple[50]
                       : user.role == UserRole.headBarber
                       ? Colors.orange[50]
-                      : Colors.grey[100],
+                      : Colors.green[50],
                   child: Icon(
                     user.role == UserRole.admin
                         ? Icons.admin_panel_settings
                         : user.role == UserRole.headBarber
                         ? Icons.content_cut
-                        : Icons.person,
+                        : Icons.badge_outlined,
                     color: user.role == UserRole.admin
                         ? Colors.deepPurple
                         : user.role == UserRole.headBarber
                         ? Colors.orange
-                        : Colors.grey,
+                        : Colors.green,
                   ),
                 ),
                 title: Text(user.name),
-                subtitle: Text(
-                  '${user.email} - Rol: ${user.role == UserRole.admin ? 'Admin' : (user.role == UserRole.headBarber ? 'Barbero Jefe' : 'Empleado')}',
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${user.email} - Rol: ${user.role == UserRole.admin ? 'Admin' : (user.role == UserRole.headBarber ? 'Barbero Jefe' : 'Barbero')}',
+                    ),
+                    if (user.dailyRate > 0)
+                      Text(
+                        'Pago Diario: \$${user.dailyRate.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.edit_outlined),
@@ -98,7 +128,14 @@ class _StaffPageState extends State<StaffPage> {
     );
     final emailController = TextEditingController(text: user?.email ?? '');
     final passwordController = TextEditingController();
+    final dailyRateController = TextEditingController(
+      text: user != null && user.dailyRate > 0 ? user.dailyRate.toStringAsFixed(0) : '',
+    );
     UserRole selectedRole = user?.role ?? UserRole.employee;
+
+    final authState = context.read<AuthBloc>().state;
+    final currentUser = authState is Authenticated ? authState.user : null;
+    final isHeadBarber = currentUser?.role == UserRole.headBarber;
 
     showDialog(
       context: context,
@@ -286,38 +323,40 @@ class _StaffPageState extends State<StaffPage> {
                                   onChanged: (val) =>
                                       setState(() => selectedRole = val!),
                                 ),
-                                const Divider(height: 1),
-                                RadioListTile<UserRole>(
-                                  title: const Text(
-                                    'Barbero Jefe',
-                                    style: TextStyle(fontWeight: FontWeight.w500),
+                                if (!isHeadBarber) ...[
+                                  const Divider(height: 1),
+                                  RadioListTile<UserRole>(
+                                    title: const Text(
+                                      'Barbero Jefe',
+                                      style: TextStyle(fontWeight: FontWeight.w500),
+                                    ),
+                                    subtitle: const Text(
+                                      'Acceso a POS y Reportes (Maneja su equipo)',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    value: UserRole.headBarber,
+                                    activeColor: const Color(0xFFC5A028),
+                                    groupValue: selectedRole,
+                                    onChanged: (val) =>
+                                        setState(() => selectedRole = val!),
                                   ),
-                                  subtitle: const Text(
-                                    'Acceso a POS y Reportes (Sin permisos de dueño)',
-                                    style: TextStyle(fontSize: 12),
+                                  const Divider(height: 1),
+                                  RadioListTile<UserRole>(
+                                    title: const Text(
+                                      'Administrador / Dueño',
+                                      style: TextStyle(fontWeight: FontWeight.w500),
+                                    ),
+                                    subtitle: const Text(
+                                      'Acceso total y reportes',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    value: UserRole.admin,
+                                    activeColor: const Color(0xFFC5A028),
+                                    groupValue: selectedRole,
+                                    onChanged: (val) =>
+                                        setState(() => selectedRole = val!),
                                   ),
-                                  value: UserRole.headBarber,
-                                  activeColor: const Color(0xFFC5A028),
-                                  groupValue: selectedRole,
-                                  onChanged: (val) =>
-                                      setState(() => selectedRole = val!),
-                                ),
-                                const Divider(height: 1),
-                                RadioListTile<UserRole>(
-                                  title: const Text(
-                                    'Administrador / Dueño',
-                                    style: TextStyle(fontWeight: FontWeight.w500),
-                                  ),
-                                  subtitle: const Text(
-                                    'Acceso total y reportes',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                  value: UserRole.admin,
-                                  activeColor: const Color(0xFFC5A028),
-                                  groupValue: selectedRole,
-                                  onChanged: (val) =>
-                                      setState(() => selectedRole = val!),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -375,6 +414,7 @@ class _StaffPageState extends State<StaffPage> {
                                           username: usernameController.text,
                                           email: emailController.text,
                                           role: selectedRole,
+                                          dailyRate: double.tryParse(dailyRateController.text) ?? 0.0,
                                           password: pwd.isNotEmpty ? pwd : user?.password,
                                         );
                                         

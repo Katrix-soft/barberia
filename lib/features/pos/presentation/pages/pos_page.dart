@@ -399,6 +399,44 @@ class _PosPageState extends State<PosPage> {
                     ),
                   ),
                 ),
+                if (authState is Authenticated && authState.user.role == UserRole.employee)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFC5A028).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'SALARIO DEL DÍA',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFC5A028),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '\$${authState.user.dailyRate.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const Text(
+                            'Monto acordado con Barbero Jefe',
+                            style: TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ListTile(
                   leading: const Icon(Icons.point_of_sale_rounded),
                   title: const Text('Terminal de Ventas'),
@@ -485,10 +523,11 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                     },
                   ),
-                if (isAdmin) ...[
+                if (isAdmin || isHeadBarber)
                   ListTile(
                     leading: const Icon(Icons.badge),
                     title: const Text('Personal'),
+                    subtitle: isHeadBarber ? const Text('Gestionar mi equipo') : null,
                     onTap: () async {
                       final nav = Navigator.of(context);
                       nav.pop();
@@ -498,6 +537,7 @@ class _PosPageState extends State<PosPage> {
                       _loadData();
                     },
                   ),
+                if (isAdmin) ...[
                   if (kIsWeb)
                     ListTile(
                       leading: const Icon(
@@ -741,9 +781,9 @@ class _PosPageState extends State<PosPage> {
                 tablet: 3,
                 desktop: 4,
               ),
-              childAspectRatio: 0.55,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
             ),
             itemCount: filteredProducts.length,
             itemBuilder: (context, index) {
@@ -1011,74 +1051,64 @@ class _PosPageState extends State<PosPage> {
                 ),
               ),
               Expanded(
-                flex: 5,
+                flex: 6, // Give more space to text area
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.category.toUpperCase(),
-                            style: const TextStyle(
-                              color: Color(0xFFC5A028),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            product.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              letterSpacing: -0.2,
-                              height: 1.1,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        product.category.toUpperCase(),
+                        style: const TextStyle(
+                          color: Color(0xFFC5A028),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          letterSpacing: -0.2,
+                          height: 1.1,
+                        ),
+                      ),
+                      const Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '\$${product.price.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  color: Color(0xFFC5A028),
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            '\$${product.price.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Color(0xFFC5A028),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                            ),
                           ),
                           if (!product.isService)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 6,
+                                vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color:
-                                    (product.stock > 5
-                                            ? Colors.green
-                                            : Colors.orange)
-                                        .withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
+                                color: (product.stock > 5
+                                        ? Colors.green
+                                        : Colors.orange)
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 '${product.stock}',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w900,
                                   color: product.stock > 5
                                       ? Colors.green
@@ -1145,6 +1175,12 @@ class _PosPageState extends State<PosPage> {
                     ),
                   ),
                 ),
+                if (state.cartItems.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                    tooltip: 'Vaciar Carrito',
+                    onPressed: () => _confirmClearCart(context),
+                  ),
               ],
             ),
           ),
@@ -1233,11 +1269,10 @@ class _PosPageState extends State<PosPage> {
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   '\$${state.total.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
                     color: Color(0xFFC5A028),
                     letterSpacing: -1,
@@ -1245,28 +1280,32 @@ class _PosPageState extends State<PosPage> {
                 ),
               ],
             ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  if (state.cartItems.isEmpty) return;
-                  _showCheckoutBottomSheet(context, state);
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: state.cartItems.isEmpty
-                      ? Colors.grey
-                      : const Color(0xFFC5A028),
-                  foregroundColor: state.cartItems.isEmpty
-                      ? Colors.black54
-                      : Colors.black,
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                child: const Text('Confirmar Venta'),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => _confirmClearCart(context),
+              icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+              label: const Text(
+                'CANCELAR',
+                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13),
               ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                if (state.cartItems.isEmpty) return;
+                _showCheckoutBottomSheet(context, state);
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                backgroundColor: state.cartItems.isEmpty
+                    ? Colors.grey
+                    : const Color(0xFFC5A028),
+                foregroundColor: state.cartItems.isEmpty
+                    ? Colors.black54
+                    : Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('CONFIRMAR'),
             ),
           ],
         ),
@@ -1551,6 +1590,29 @@ class _PosPageState extends State<PosPage> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  void _confirmClearCart(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Vaciar Carrito?'),
+        content: const Text('Se eliminarán todos los productos seleccionados.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('No, volver'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<PosBloc>().add(ClearPos());
+              Navigator.pop(ctx);
+            },
+            child: const Text('Sí, Vaciar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

@@ -99,6 +99,7 @@ class AuthRepositoryImpl implements AuthRepository {
         'username': user.username,
         'email': user.email,
         'role': user.role.name,
+        'daily_rate': user.dailyRate,
       };
 
       // Only update password if a new one is provided (not empty)

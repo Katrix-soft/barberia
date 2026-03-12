@@ -59,25 +59,29 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final isSupported = await auth.isDeviceSupported();
       final canCheckBiometrics = await auth.canCheckBiometrics;
-      final prefs = await SharedPreferences.getInstance();
+      final List<BiometricType> availableBiometrics =
+          await auth.getAvailableBiometrics();
 
-      // We check if it's supported AND (either use_biometrics is true OR we have saved credentials)
-      // This is more proactive as requested by the user.
+      final prefs = await SharedPreferences.getInstance();
       final useBiometrics = prefs.getBool('use_biometrics') ?? false;
-      final hasSavedCreds =
-          prefs.getString('saved_email') != null &&
+      final hasSavedCreds = prefs.getString('saved_email') != null &&
           prefs.getString('saved_password') != null;
 
-      final shouldOfferBiometrics = (isSupported || canCheckBiometrics);
+      // Ensure we have at least one valid biometric method enrolled
+      final hasBiometricsEnrolled = availableBiometrics.isNotEmpty;
+      final shouldOfferBiometrics =
+          (isSupported || canCheckBiometrics) && hasBiometricsEnrolled;
 
       if (mounted) {
         setState(() {
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Trigger prompt automatically if enabled or if we have saved credentials to login with
         if (shouldOfferBiometrics && (useBiometrics || hasSavedCreds)) {
-          _authenticateWithBiometrics();
+          // Delay to ensure UI is ready for the platform dialog
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _authenticateWithBiometrics();
+          });
         }
       }
     } catch (e) {
@@ -111,6 +115,11 @@ class _LoginScreenState extends State<LoginScreen>
 
       final authenticated = await auth.authenticate(
         localizedReason: 'Inicia sesión de forma segura con biometría',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+          useErrorDialogs: true,
+        ),
       );
 
       if (authenticated) {
@@ -125,6 +134,14 @@ class _LoginScreenState extends State<LoginScreen>
       }
     } on PlatformException catch (e) {
       debugPrint('Biometric auth error: ${e.message}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de biometría: ${e.message}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 

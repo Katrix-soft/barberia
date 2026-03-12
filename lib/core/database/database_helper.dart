@@ -23,7 +23,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
-        version: 6,
+        version: 7,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -36,7 +36,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       dbPath,
-      version: 6,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -96,6 +96,13 @@ class DatabaseHelper {
       try { await db.execute('ALTER TABLE products ADD COLUMN stock_min INTEGER DEFAULT 5'); } catch (_) {}
       try { await db.execute('ALTER TABLE products ADD COLUMN category TEXT'); } catch (_) {}
     }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN daily_rate REAL DEFAULT 0');
+      } catch (e) {
+        // Ignored if already exists
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -106,7 +113,8 @@ class DatabaseHelper {
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT NOT NULL
+        role TEXT NOT NULL,
+        daily_rate REAL DEFAULT 0
       )
     ''');
 

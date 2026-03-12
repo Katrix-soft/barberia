@@ -8,6 +8,7 @@ class UserModel extends User {
     required super.email,
     required super.password,
     required super.role,
+    super.dailyRate = 0.0,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -21,6 +22,7 @@ class UserModel extends User {
         (e) => e.name == map['role'],
         orElse: () => UserRole.employee,
       ),
+      dailyRate: (map['daily_rate'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -32,6 +34,7 @@ class UserModel extends User {
       'email': email,
       'password': password,
       'role': role.name,
+      'daily_rate': dailyRate,
     };
   }
 }

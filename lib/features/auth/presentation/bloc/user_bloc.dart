@@ -45,7 +45,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         state.copyWith(status: UserStatus.error, errorMessage: failure.message),
       ),
       (_) {
-        emit(state.copyWith(status: UserStatus.success));
+        emit(state.copyWith(status: UserStatus.deleted));
         add(LoadUsers());
       },
     );

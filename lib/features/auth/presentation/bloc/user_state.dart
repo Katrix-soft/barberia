@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/user.dart';
 
-enum UserStatus { initial, loading, loaded, success, error }
+enum UserStatus { initial, loading, loaded, success, error, deleted }
 
 class UserState extends Equatable {
   final UserStatus status;

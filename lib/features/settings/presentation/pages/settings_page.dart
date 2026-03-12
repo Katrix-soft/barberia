@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
@@ -44,17 +45,37 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _toggleBiometrics(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     if (value) {
-      // If turning on, try to authenticate first to verify
       try {
         final authenticated = await _auth.authenticate(
-          localizedReason: 'Confirma tu identidad para activar el acceso biométrico',
+          localizedReason:
+              'Confirma tu identidad para activar el acceso biométrico',
+          options: const AuthenticationOptions(
+            stickyAuth: true,
+            biometricOnly: true,
+          ),
         );
         if (authenticated) {
           await prefs.setBool('use_biometrics', true);
           setState(() => _useBiometrics = true);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Acceso biométrico activado correctamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
-      } catch (e) {
+      } on PlatformException catch (e) {
         debugPrint('Error activating biometrics: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al activar biometría: ${e.message}'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
       }
     } else {
       await prefs.setBool('use_biometrics', false);

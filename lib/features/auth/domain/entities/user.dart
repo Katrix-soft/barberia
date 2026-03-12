@@ -9,6 +9,7 @@ class User extends Equatable {
   final String email;
   final String? password;
   final UserRole role;
+  final double dailyRate;
 
   const User({
     this.id,
@@ -17,8 +18,9 @@ class User extends Equatable {
     required this.email,
     this.password,
     required this.role,
+    this.dailyRate = 0.0,
   });
 
   @override
-  List<Object?> get props => [id, name, username, email, password, role];
+  List<Object?> get props => [id, name, username, email, password, role, dailyRate];
 }
