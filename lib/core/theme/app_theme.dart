@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Luxury Palette
+  // BM BARBER Palette
   static const primaryColor = Color(0xFF0A0A0A); // Deep Black
-  static const secondaryColor = Color(0xFFC5A028); // Luxury Gold
+  static const secondaryColor = Color(0xFFC5A028); // Branding Gold
   static const accentGold = Color(0xFFD4AF37); // Bright Gold
   static const darkGrey = Color(0xFF1A1A1A); // Card background
   static const surfaceColor = Color(0xFF262626); // Input background
@@ -101,7 +101,6 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: secondaryColor,
           foregroundColor: primaryColor,
-          minimumSize: const Size(double.infinity, 56),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

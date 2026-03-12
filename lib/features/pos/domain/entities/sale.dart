@@ -11,6 +11,7 @@ class Sale extends Equatable {
   final PaymentMethod paymentMethod;
   final String userName;
   final List<SaleItem> items;
+  final bool isSynced;
 
   const Sale({
     this.id,
@@ -21,6 +22,7 @@ class Sale extends Equatable {
     required this.paymentMethod,
     required this.userName,
     required this.items,
+    this.isSynced = false,
   });
 
   @override
@@ -33,6 +35,7 @@ class Sale extends Equatable {
     paymentMethod,
     userName,
     items,
+    isSynced,
   ];
 }
 

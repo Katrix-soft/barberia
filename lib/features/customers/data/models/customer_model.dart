@@ -8,6 +8,7 @@ class CustomerModel extends Customer {
     super.email,
     super.points,
     super.notes,
+    super.isSynced = true,
   });
 
   factory CustomerModel.fromMap(Map<String, dynamic> map) {
@@ -18,6 +19,7 @@ class CustomerModel extends Customer {
       email: map['email'],
       points: map['points'] ?? 0,
       notes: map['notes'],
+      isSynced: (map['is_synced'] ?? 1) == 1,
     );
   }
 
@@ -29,6 +31,7 @@ class CustomerModel extends Customer {
       'email': email,
       'points': points,
       'notes': notes,
+      'is_synced': isSynced ? 1 : 0,
     };
   }
 }

@@ -100,13 +100,26 @@ class AuthRepositoryImpl implements AuthRepository {
         'name': user.name,
         'username': user.username,
         'email': user.email,
-        'password': password,
         'role': user.role.name,
       };
 
+      // Only update password if a new one is provided (not empty)
+      if (password.isNotEmpty) {
+        userModelMap['password'] = password;
+      }
+
       if (user.id == null) {
+        // For new users, if password is empty it will fail NOT NULL constraint
+        // if not handled elsewhere, but StaffPage ensures it's set for new users.
+        if (password.isEmpty) {
+          return const Left(
+            AuthFailure('Contraseña requerida para nuevos usuarios'),
+          );
+        }
         await db.insert('users', userModelMap);
       } else {
+        // Exclude ID from update map to avoid issues with some SQL drivers
+        userModelMap.remove('id');
         await db.update(
           'users',
           userModelMap,

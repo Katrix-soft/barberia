@@ -39,9 +39,20 @@ class _LoginScreenState extends State<LoginScreen>
       parent: _animationController,
       curve: Curves.easeIn,
     );
-    _loadSavedCredentials();
-    _checkBiometrics();
+
+    // Sequence our initialization for stability
+    _initAuth();
     _animationController.forward();
+  }
+
+  Future<void> _initAuth() async {
+    // 1. Load credentials first
+    await _loadSavedCredentials();
+    // 2. Then check and trigger biometrics with a small delay for UI to settle
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) {
+      await _checkBiometrics();
+    }
   }
 
   Future<void> _checkBiometrics() async {
@@ -49,22 +60,28 @@ class _LoginScreenState extends State<LoginScreen>
       final isSupported = await auth.isDeviceSupported();
       final canCheckBiometrics = await auth.canCheckBiometrics;
       final prefs = await SharedPreferences.getInstance();
-      final useBiometrics = prefs.getBool('use_biometrics') ?? false;
 
-      final supportedAndEnabled =
-          (isSupported || canCheckBiometrics) && useBiometrics;
+      // We check if it's supported AND (either use_biometrics is true OR we have saved credentials)
+      // This is more proactive as requested by the user.
+      final useBiometrics = prefs.getBool('use_biometrics') ?? false;
+      final hasSavedCreds =
+          prefs.getString('saved_email') != null &&
+          prefs.getString('saved_password') != null;
+
+      final shouldOfferBiometrics = (isSupported || canCheckBiometrics);
 
       if (mounted) {
         setState(() {
-          _isBiometricSupported = supportedAndEnabled;
+          _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        if (supportedAndEnabled) {
-          Future.microtask(() => _authenticateWithBiometrics());
+        // Trigger prompt automatically if enabled or if we have saved credentials to login with
+        if (shouldOfferBiometrics && (useBiometrics || hasSavedCreds)) {
+          _authenticateWithBiometrics();
         }
       }
     } catch (e) {
-      debugPrint('Biometrics error: $e');
+      debugPrint('Biometrics stability check: $e');
     }
   }
 
@@ -129,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A), // Deep Black
       body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -138,11 +155,16 @@ class _LoginScreenState extends State<LoginScreen>
                 behavior: SnackBarBehavior.floating,
               ),
             );
+          } else if (state is Authenticated) {
+            // Automatically enable biometrics for next time upon successful login
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('use_biometrics', true);
+            // Credentials are already saved in _submitLogin
           }
         },
         child: Stack(
           children: [
-            // Luxury Ambient Glows
+            // Ambient Glows
             Positioned(
               top: -150,
               right: -100,
@@ -216,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 32),
 
                         Text(
-                          'POSBARBER LUXURY',
+                          'BM BARBER',
                           style: GoogleFonts.outfit(
                             fontSize: 34,
                             fontWeight: FontWeight.w900,
@@ -259,14 +281,14 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildLuxuryField(
+                              _buildBrandingField(
                                 controller: _emailController,
                                 label: 'Usuario o Email',
                                 icon: Icons.person_outline_rounded,
                                 isEmail: true,
                               ),
                               const SizedBox(height: 24),
-                              _buildLuxuryField(
+                              _buildBrandingField(
                                 controller: _passwordController,
                                 label: 'Contraseña',
                                 icon: Icons.lock_outline_rounded,
@@ -334,6 +356,10 @@ class _LoginScreenState extends State<LoginScreen>
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
+                                        minimumSize: const Size(
+                                          double.infinity,
+                                          58,
+                                        ),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             16,
@@ -434,7 +460,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLuxuryField({
+  Widget _buildBrandingField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -573,7 +599,7 @@ class _LoginScreenState extends State<LoginScreen>
                   queryParameters: {
                     'subject': '🔑 Recuperación de Credenciales - Posbarber',
                     'body':
-                        'Hola ${userMap['name']},\n\nHas solicitado recuperar tus credenciales.\n\nUsuario: ${userMap['username']}\nContraseña: $pwd\n\nSaludos,\nEquipo Luxury Posbarber.',
+                        'Hola ${userMap['name']},\n\nHas solicitado recuperar tus credenciales.\n\nUsuario: ${userMap['username']}\nContraseña: $pwd\n\nSaludos,\nEquipo BM BARBER.',
                   },
                 );
                 await launchUrl(emailLaunchUri);

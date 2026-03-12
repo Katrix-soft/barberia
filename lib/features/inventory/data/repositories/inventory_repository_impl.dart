@@ -43,9 +43,11 @@ class InventoryRepositoryImpl implements InventoryRepository {
       if (product.id == null) {
         await db.insert('products', productModel.toMap());
       } else {
+        final map = productModel.toMap();
+        map.remove('id');
         await db.update(
           'products',
-          productModel.toMap(),
+          map,
           where: 'id = ?',
           whereArgs: [product.id],
         );

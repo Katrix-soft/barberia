@@ -7,6 +7,7 @@ class Customer extends Equatable {
   final String? email;
   final int points;
   final String? notes;
+  final bool isSynced;
 
   const Customer({
     this.id,
@@ -15,8 +16,9 @@ class Customer extends Equatable {
     this.email,
     this.points = 0,
     this.notes,
+    this.isSynced = true,
   });
 
   @override
-  List<Object?> get props => [id, name, phone, email, points, notes];
+  List<Object?> get props => [id, name, phone, email, points, notes, isSynced];
 }

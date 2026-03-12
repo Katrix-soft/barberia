@@ -19,12 +19,21 @@ import 'features/booking/presentation/bloc/booking_event.dart';
 import 'features/expenses/presentation/bloc/expense_bloc.dart';
 import 'features/expenses/presentation/bloc/expense_event.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/services/sync_service.dart';
+import 'core/services/push_notification_service.dart';
 import 'injection_container.dart' as di;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
   await di.init();
+  
+  // Start Offline Sync Service
+  di.sl<SyncService>().startAutoSync();
+  
+  // Initialize Push Notifications (Web)
+  await PushNotificationService.initialize();
+  
   runApp(const MyApp());
 }
 
@@ -53,7 +62,7 @@ class MyApp extends StatelessWidget {
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
           return MaterialApp(
-            title: 'Posbarber',
+            title: 'BM BARBER',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,

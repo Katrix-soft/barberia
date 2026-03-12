@@ -40,9 +40,11 @@ class CustomerRepositoryImpl implements CustomerRepository {
       if (customer.id == null) {
         await db.insert('customers', customerModel.toMap());
       } else {
+        final map = customerModel.toMap();
+        map.remove('id');
         await db.update(
           'customers',
-          customerModel.toMap(),
+          map,
           where: 'id = ?',
           whereArgs: [customer.id],
         );

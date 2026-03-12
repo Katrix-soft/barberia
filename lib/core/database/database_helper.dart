@@ -23,7 +23,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
-        version: 4,
+        version: 5,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -36,7 +36,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       dbPath,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -79,6 +79,14 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 5) {
+      // Add is_synced to existing tables
+      await db.execute('ALTER TABLE sales ADD COLUMN is_synced INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE customers ADD COLUMN is_synced INTEGER DEFAULT 1');
+      await db.execute('ALTER TABLE products ADD COLUMN is_synced INTEGER DEFAULT 1');
+      await db.execute('ALTER TABLE expenses ADD COLUMN is_synced INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE appointments ADD COLUMN is_synced INTEGER DEFAULT 0');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -105,7 +113,8 @@ class DatabaseHelper {
         stock_min INTEGER DEFAULT 5,
         category TEXT,
         is_service INTEGER DEFAULT 0,
-        image_url TEXT
+        image_url TEXT,
+        is_synced INTEGER DEFAULT 1
       )
     ''');
 
@@ -117,7 +126,8 @@ class DatabaseHelper {
         phone TEXT,
         email TEXT,
         points INTEGER DEFAULT 0,
-        notes TEXT
+        notes TEXT,
+        is_synced INTEGER DEFAULT 1
       )
     ''');
 
@@ -131,6 +141,7 @@ class DatabaseHelper {
         total REAL NOT NULL,
         payment_method TEXT NOT NULL,
         user_name TEXT NOT NULL,
+        is_synced INTEGER DEFAULT 0,
         FOREIGN KEY (customer_id) REFERENCES customers (id)
       )
     ''');
@@ -176,6 +187,7 @@ class DatabaseHelper {
       'category': 'Cortes',
       'is_service': 1,
       'image_url': 'assets/images/corte.png',
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -186,6 +198,7 @@ class DatabaseHelper {
       'category': 'Cortes',
       'is_service': 1,
       'image_url': 'assets/images/corte+barba.png',
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -196,6 +209,7 @@ class DatabaseHelper {
       'category': 'Cortes',
       'is_service': 1,
       'image_url': 'assets/images/barba.png',
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -206,6 +220,7 @@ class DatabaseHelper {
       'category': 'Cortes',
       'is_service': 1,
       'image_url': 'assets/images/color.png',
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -216,6 +231,7 @@ class DatabaseHelper {
       'category': 'Cortes',
       'is_service': 1,
       'image_url': 'assets/images/color.png',
+      'is_synced': 1,
     });
 
     // Seed Products (Physical Goods)
@@ -226,6 +242,7 @@ class DatabaseHelper {
       'stock': 24,
       'category': 'Bebidas',
       'is_service': 0,
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -235,6 +252,7 @@ class DatabaseHelper {
       'stock': 50,
       'category': 'Bebidas',
       'is_service': 0,
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -244,6 +262,7 @@ class DatabaseHelper {
       'stock': 5,
       'category': 'Perfumes',
       'is_service': 0,
+      'is_synced': 1,
     });
 
     await db.insert('products', {
@@ -253,6 +272,7 @@ class DatabaseHelper {
       'stock': 10,
       'category': 'Ropa',
       'is_service': 0,
+      'is_synced': 1,
     });
 
     // Create Appointments table if version is high enough
@@ -267,6 +287,7 @@ class DatabaseHelper {
           date_time TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
           notes TEXT,
+          is_synced INTEGER DEFAULT 0,
           FOREIGN KEY (customer_id) REFERENCES customers (id),
           FOREIGN KEY (service_id) REFERENCES products (id)
         )
@@ -281,7 +302,8 @@ class DatabaseHelper {
           amount REAL NOT NULL,
           due_date TEXT NOT NULL,
           is_paid INTEGER DEFAULT 0,
-          category TEXT NOT NULL
+          category TEXT NOT NULL,
+          is_synced INTEGER DEFAULT 0
         )
       ''');
     }

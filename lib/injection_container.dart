@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/database/database_helper.dart';
 import 'core/theme/bloc/theme_bloc.dart';
+import 'core/services/sync_service.dart';
 
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
@@ -74,6 +75,8 @@ Future<void> init() async {
 
   //! Core
   sl.registerLazySingleton(() => DatabaseHelper());
+  sl.registerLazySingleton(() => SyncService(databaseHelper: sl()));
+  
   // Theme
   sl.registerFactory(() => ThemeBloc(sharedPreferences: sl()));
 
