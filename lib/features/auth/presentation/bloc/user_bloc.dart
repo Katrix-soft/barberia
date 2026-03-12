@@ -30,7 +30,10 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       (failure) => emit(
         state.copyWith(status: UserStatus.error, errorMessage: failure.message),
       ),
-      (_) => add(LoadUsers()), // Refresh list
+      (_) {
+        emit(state.copyWith(status: UserStatus.success));
+        add(LoadUsers());
+      },
     );
   }
 
@@ -41,7 +44,10 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       (failure) => emit(
         state.copyWith(status: UserStatus.error, errorMessage: failure.message),
       ),
-      (_) => add(LoadUsers()), // Refresh list
+      (_) {
+        emit(state.copyWith(status: UserStatus.success));
+        add(LoadUsers());
+      },
     );
   }
 }

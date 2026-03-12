@@ -8,7 +8,13 @@ abstract class ExpenseEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadExpenses extends ExpenseEvent {}
+class LoadExpenses extends ExpenseEvent {
+  final String? userName;
+  const LoadExpenses({this.userName});
+
+  @override
+  List<Object?> get props => [userName];
+}
 
 class AddExpenseEvent extends ExpenseEvent {
   final Expense expense;

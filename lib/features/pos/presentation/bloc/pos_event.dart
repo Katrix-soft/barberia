@@ -10,7 +10,13 @@ abstract class PosEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadPosData extends PosEvent {}
+class LoadPosData extends PosEvent {
+  final String? userName;
+  const LoadPosData({this.userName});
+
+  @override
+  List<Object?> get props => [userName];
+}
 
 class AddProductToCart extends PosEvent {
   final Product product;

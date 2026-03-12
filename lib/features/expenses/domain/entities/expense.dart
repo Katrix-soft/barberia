@@ -7,6 +7,7 @@ class Expense extends Equatable {
   final DateTime dueDate;
   final bool isPaid;
   final String category;
+  final String userName;
 
   const Expense({
     this.id,
@@ -15,6 +16,7 @@ class Expense extends Equatable {
     required this.dueDate,
     this.isPaid = false,
     required this.category,
+    required this.userName,
   });
 
   @override
@@ -25,5 +27,6 @@ class Expense extends Equatable {
     dueDate,
     isPaid,
     category,
+    userName,
   ];
 }

@@ -5,6 +5,10 @@ import '../bloc/expense_bloc.dart';
 import '../bloc/expense_event.dart';
 import '../bloc/expense_state.dart';
 import '../../domain/entities/expense.dart';
+import 'package:posbarber/features/pos/presentation/bloc/pos_bloc.dart';
+import 'package:posbarber/features/pos/presentation/bloc/pos_event.dart';
+import 'package:posbarber/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:posbarber/features/auth/presentation/bloc/auth_state.dart';
 
 class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
@@ -14,20 +18,37 @@ class ExpensesPage extends StatefulWidget {
 }
 
 class _ExpensesPageState extends State<ExpensesPage> {
+  String? _currentUserName;
+
+  @override
+  void initState() {
+    super.initState();
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      _currentUserName = authState.user.name;
+      // If employee, only their expenses. If admin, show everything (or could also be filtered)
+      // The user said "independiente del resto", I'll filter by user for everyone.
+      context.read<ExpenseBloc>().add(LoadExpenses(userName: _currentUserName));
+    } else {
+      context.read<ExpenseBloc>().add(const LoadExpenses());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Control de Gastos',
+          'Control de Gastos Personal',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
       body: BlocListener<ExpenseBloc, ExpenseState>(
         listener: (context, state) {
-          if (state.status == ExpenseStatus.success &&
-              state.lastUpdatedExpense != null) {
-            if (state.lastUpdatedExpense!.isPaid) {
+          if (state.status == ExpenseStatus.success) {
+            context.read<PosBloc>().add(LoadPosData());
+            
+            if (state.lastUpdatedExpense != null && state.lastUpdatedExpense!.isPaid) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Row(
@@ -110,7 +131,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
       child: Column(
         children: [
           const Text(
-            'TOTAL PENDIENTE',
+            'MI SALDO PENDIENTE',
             style: TextStyle(
               letterSpacing: 2,
               fontWeight: FontWeight.bold,
@@ -127,9 +148,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '¡Mantén tus cuentas al día!',
-            style: TextStyle(color: Colors.grey),
+          Text(
+            'Usuario: ${_currentUserName ?? "Administrador"}',
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
           ),
         ],
       ),
@@ -144,7 +165,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[300]),
           const SizedBox(height: 16),
           const Text(
-            'No hay gastos registrados',
+            'No tienes gastos registrados',
             style: TextStyle(color: Colors.grey, fontSize: 16),
           ),
         ],
@@ -183,7 +204,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         subtitle: Text(
-          'Vence: ${DateFormat('dd/MM/yyyy').format(expense.dueDate)}',
+          'Vence: ${DateFormat("dd/MM/yyyy").format(expense.dueDate)}',
           style: TextStyle(
             color: isOverdue && !expense.isPaid ? Colors.red : Colors.grey,
           ),
@@ -274,14 +295,15 @@ class _ExpensesPageState extends State<ExpensesPage> {
   void _showAddExpenseDialog(BuildContext context) {
     final descController = TextEditingController();
     final amountController = TextEditingController();
-    String selectedCategory = 'Luz';
+    String selectedCategory = 'Insumos';
     DateTime selectedDate = DateTime.now();
+    bool isSaving = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Registrar Gasto'),
+          title: const Text('Registrar Gasto Propio'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -289,7 +311,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 TextField(
                   controller: descController,
                   decoration: const InputDecoration(
-                    labelText: 'Descripción (ej: Alquiler Marzo)',
+                    labelText: 'Descripción',
+                    hintText: 'Ej: Tijeras nuevas, Alquiler de silla',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -300,15 +323,16 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
+                  value: selectedCategory,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   items:
                       [
-                            'Luz',
+                            'Insumos',
                             'Alquiler',
+                            'Luz',
                             'Internet',
                             'Agua',
-                            'Insumos',
+                            'Mantenimiento',
                             'Otros',
                           ]
                           .map(
@@ -320,7 +344,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  title: const Text('Fecha de Vencimiento'),
+                  title: const Text('Fecha'),
                   subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
@@ -328,7 +352,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                       context: context,
                       initialDate: selectedDate,
                       firstDate: DateTime.now().subtract(
-                        const Duration(days: 30),
+                        const Duration(days: 90),
                       ),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
@@ -344,31 +368,42 @@ class _ExpensesPageState extends State<ExpensesPage> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () {
-                if (descController.text.isEmpty ||
-                    amountController.text.isEmpty) {
-                  return;
-                }
-                final amount =
-                    double.tryParse(
-                      amountController.text.replaceAll(',', '.'),
-                    ) ??
-                    0;
-                if (amount <= 0) return;
+              onPressed: isSaving 
+                ? null 
+                : () {
+                    if (descController.text.isEmpty ||
+                        amountController.text.isEmpty) {
+                      return;
+                    }
+                    final amount =
+                        double.tryParse(
+                          amountController.text.replaceAll(',', '.'),
+                        ) ??
+                        0;
+                    if (amount <= 0) return;
 
-                context.read<ExpenseBloc>().add(
-                  AddExpenseEvent(
-                    Expense(
-                      description: descController.text,
-                      amount: amount,
-                      dueDate: selectedDate,
-                      category: selectedCategory,
-                    ),
-                  ),
-                );
-                Navigator.pop(ctx);
-              },
-              child: const Text('Guardar'),
+                    setDialogState(() => isSaving = true);
+
+                    context.read<ExpenseBloc>().add(
+                      AddExpenseEvent(
+                        Expense(
+                          description: descController.text,
+                          amount: amount,
+                          dueDate: selectedDate,
+                          category: selectedCategory,
+                          userName: _currentUserName ?? 'admin',
+                        ),
+                      ),
+                    );
+                    Navigator.pop(ctx);
+                  },
+              child: isSaving 
+                ? const SizedBox(
+                    width: 20, 
+                    height: 20, 
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                  )
+                : const Text('Guardar'),
             ),
           ],
         ),

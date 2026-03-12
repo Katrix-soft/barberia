@@ -9,16 +9,10 @@ import 'download_helper_stub.dart'
 class ExcelExportService {
   static Future<String?> exportSales(List<Sale> sales) async {
     final Excel excel = Excel.createExcel();
+    
+    // Use 'Ventas' as the main sheet
     final Sheet sheet = excel['Ventas'];
     excel.delete('Sheet1');
-
-    // Header style
-    CellStyle headerStyle = CellStyle(
-      bold: true,
-      italic: false,
-      fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
-      backgroundColorHex: ExcelColor.fromHexString('#C5A028'),
-    );
 
     // Add Headers
     sheet.appendRow([
@@ -29,11 +23,14 @@ class ExcelExportService {
       TextCellValue('Barbero/Usuario'),
     ]);
 
+    // Header styling
     for (int i = 0; i < 5; i++) {
-      sheet
-              .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
-              .cellStyle =
-          headerStyle;
+      var cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+      cell.cellStyle = CellStyle(
+        bold: true,
+        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('#C5A028'),
+      );
     }
 
     // Add Data
@@ -47,11 +44,13 @@ class ExcelExportService {
       ]);
     }
 
+    // Generate unique filename to avoid "duplicate" download issues
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = "BM_BARBER_Reporte_$timestamp.xlsx";
+    
     final List<int>? fileBytes = excel.save();
 
     if (fileBytes != null) {
-      final fileName =
-          "Reporte_Ventas_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.xlsx";
       return DownloadHelper.downloadExcel(fileBytes, fileName);
     }
     return null;

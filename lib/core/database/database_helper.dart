@@ -23,7 +23,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
-        version: 5,
+        version: 6,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -36,7 +36,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       dbPath,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -80,17 +80,25 @@ class DatabaseHelper {
       ''');
     }
     if (oldVersion < 5) {
-      // Add is_synced to existing tables
       await db.execute('ALTER TABLE sales ADD COLUMN is_synced INTEGER DEFAULT 0');
       await db.execute('ALTER TABLE customers ADD COLUMN is_synced INTEGER DEFAULT 1');
       await db.execute('ALTER TABLE products ADD COLUMN is_synced INTEGER DEFAULT 1');
       await db.execute('ALTER TABLE expenses ADD COLUMN is_synced INTEGER DEFAULT 0');
       await db.execute('ALTER TABLE appointments ADD COLUMN is_synced INTEGER DEFAULT 0');
     }
+    if (oldVersion < 6) {
+      try {
+        await db.execute('ALTER TABLE expenses ADD COLUMN user_name TEXT DEFAULT "admin"');
+      } catch (e) {
+        // Ignored if already exists
+      }
+      // Ensure products columns exist (legacy safety)
+      try { await db.execute('ALTER TABLE products ADD COLUMN stock_min INTEGER DEFAULT 5'); } catch (_) {}
+      try { await db.execute('ALTER TABLE products ADD COLUMN category TEXT'); } catch (_) {}
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Users Table
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,7 +110,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Products Table
     await db.execute('''
       CREATE TABLE products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +125,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Customers Table
     await db.execute('''
       CREATE TABLE customers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,7 +137,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Sales Table
     await db.execute('''
       CREATE TABLE sales (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,7 +151,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Sale Items Table
     await db.execute('''
       CREATE TABLE sale_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -161,7 +165,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Seed Data
     await db.insert('users', {
       'name': 'Administrador',
       'username': 'admin',
@@ -179,103 +182,30 @@ class DatabaseHelper {
     });
 
     // Seed Products (Services)
-    await db.insert('products', {
-      'name': 'Corte Clásico',
-      'barcode': 'C001',
-      'price': 15.00,
-      'stock': 0,
-      'category': 'Cortes',
-      'is_service': 1,
-      'image_url': 'assets/images/corte.png',
-      'is_synced': 1,
-    });
+    final initialServices = [
+      {'name': 'Corte Clásico', 'barcode': 'C001', 'price': 15.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte.png'},
+      {'name': 'Corte + Barba', 'barcode': 'C002', 'price': 25.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte+barba.png'},
+      {'name': 'Barba', 'barcode': 'C003', 'price': 15.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/barba.png'},
+      {'name': 'Color Mechitas', 'barcode': 'C004', 'price': 40.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
+      {'name': 'Color Global', 'barcode': 'C005', 'price': 60.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
+    ];
 
-    await db.insert('products', {
-      'name': 'Corte + Barba',
-      'barcode': 'C002',
-      'price': 25.00,
-      'stock': 0,
-      'category': 'Cortes',
-      'is_service': 1,
-      'image_url': 'assets/images/corte+barba.png',
-      'is_synced': 1,
-    });
-
-    await db.insert('products', {
-      'name': 'Barba',
-      'barcode': 'C003',
-      'price': 15.00,
-      'stock': 0,
-      'category': 'Cortes',
-      'is_service': 1,
-      'image_url': 'assets/images/barba.png',
-      'is_synced': 1,
-    });
-
-    await db.insert('products', {
-      'name': 'Color Mechitas',
-      'barcode': 'C004',
-      'price': 40.00,
-      'stock': 0,
-      'category': 'Cortes',
-      'is_service': 1,
-      'image_url': 'assets/images/color.png',
-      'is_synced': 1,
-    });
-
-    await db.insert('products', {
-      'name': 'Color Global',
-      'barcode': 'C005',
-      'price': 60.00,
-      'stock': 0,
-      'category': 'Cortes',
-      'is_service': 1,
-      'image_url': 'assets/images/color.png',
-      'is_synced': 1,
-    });
+    for (var s in initialServices) {
+      await db.insert('products', s);
+    }
 
     // Seed Products (Physical Goods)
-    await db.insert('products', {
-      'name': 'Cerveza Corona',
-      'barcode': 'B001',
-      'price': 4.50,
-      'stock': 24,
-      'category': 'Bebidas',
-      'is_service': 0,
-      'is_synced': 1,
-    });
+    final initialProducts = [
+      {'name': 'Cerveza Corona', 'barcode': 'B001', 'price': 4.50, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Agua Mineral', 'barcode': 'B002', 'price': 2.00, 'stock': 50, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Perfume Dior Sauvage (Muestra)', 'barcode': 'P001', 'price': 85.00, 'stock': 5, 'category': 'Perfumes', 'is_service': 0},
+      {'name': 'Remera Katrix Black', 'barcode': 'R001', 'price': 30.00, 'stock': 10, 'category': 'Ropa', 'is_service': 0},
+    ];
 
-    await db.insert('products', {
-      'name': 'Agua Mineral',
-      'barcode': 'B002',
-      'price': 2.00,
-      'stock': 50,
-      'category': 'Bebidas',
-      'is_service': 0,
-      'is_synced': 1,
-    });
+    for (var p in initialProducts) {
+      await db.insert('products', p);
+    }
 
-    await db.insert('products', {
-      'name': 'Perfume Dior Sauvage (Muestra)',
-      'barcode': 'P001',
-      'price': 85.00,
-      'stock': 5,
-      'category': 'Perfumes',
-      'is_service': 0,
-      'is_synced': 1,
-    });
-
-    await db.insert('products', {
-      'name': 'Remera Katrix Black',
-      'barcode': 'R001',
-      'price': 30.00,
-      'stock': 10,
-      'category': 'Ropa',
-      'is_service': 0,
-      'is_synced': 1,
-    });
-
-    // Create Appointments table if version is high enough
     if (version >= 3) {
       await db.execute('''
         CREATE TABLE appointments (
@@ -303,17 +233,16 @@ class DatabaseHelper {
           due_date TEXT NOT NULL,
           is_paid INTEGER DEFAULT 0,
           category TEXT NOT NULL,
+          user_name TEXT DEFAULT 'admin',
           is_synced INTEGER DEFAULT 0
         )
       ''');
     }
   }
 
-  Future<Map<String, dynamic>?> getUserByEmailOrUsername(
-    String identifier,
-  ) async {
-    if (_database == null) await database;
-    final results = await _database!.query(
+  Future<Map<String, dynamic>?> getUserByEmailOrUsername(String identifier) async {
+    final db = await database;
+    final results = await db.query(
       'users',
       where: 'email = ? OR username = ?',
       whereArgs: [identifier, identifier],

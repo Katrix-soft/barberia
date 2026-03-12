@@ -150,6 +150,9 @@ class _InventoryPageState extends State<InventoryPage> {
     final imageUrlController = TextEditingController(
       text: product?.imageUrl ?? '',
     );
+    final categoryController = TextEditingController(
+      text: product?.category ?? (product?.isService == true ? 'Servicio' : 'Producto'),
+    );
     bool isService = product?.isService ?? false;
     final formKey = GlobalKey<FormState>();
 
@@ -283,6 +286,18 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        TextFormField(
+                          controller: categoryController,
+                          decoration: InputDecoration(
+                            labelText: 'Categoría',
+                            prefixIcon: const Icon(Icons.category_outlined),
+                            hintText: 'Ej: Corte, Bebida, Producto...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         Container(
                           decoration: BoxDecoration(
                             border: Border.all(
@@ -318,7 +333,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 if (formKey.currentState!.validate()) {
                                   final newProduct = Product(
                                     id: product?.id,
@@ -340,13 +355,12 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ? imageUrlController.text
                                         : null,
                                     isService: isService,
-                                    category: isService
-                                        ? 'Servicio'
-                                        : 'Producto',
+                                    category: categoryController.text.isNotEmpty
+                                        ? categoryController.text
+                                        : (isService ? 'Servicio' : 'Producto'),
                                   );
-                                  context.read<InventoryBloc>().add(
-                                    SaveProduct(newProduct),
-                                  );
+                                  
+                                  context.read<InventoryBloc>().add(SaveProduct(newProduct));
                                   Navigator.pop(context);
                                 }
                               },

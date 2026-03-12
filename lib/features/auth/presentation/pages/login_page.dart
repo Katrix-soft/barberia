@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../../../../core/services/email_service.dart';
 import '../../../../core/database/database_helper.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
@@ -586,25 +586,56 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
             onPressed: () async {
-              if (emailCtrl.text.isEmpty) return;
-              final userMap = await DatabaseHelper().getUserByEmailOrUsername(
-                emailCtrl.text.trim(),
-              );
+              final identifier = emailCtrl.text.trim();
+              if (identifier.isEmpty) return;
+
+              // 1. Check if user exists
+              final userMap = await DatabaseHelper().getUserByEmailOrUsername(identifier);
+
               if (userMap != null) {
-                final pwd = userMap['password'];
-                final email = userMap['email'];
-                final Uri emailLaunchUri = Uri(
-                  scheme: 'mailto',
-                  path: email,
-                  queryParameters: {
-                    'subject': '🔑 Recuperación de Credenciales - Posbarber',
-                    'body':
-                        'Hola ${userMap['name']},\n\nHas solicitado recuperar tus credenciales.\n\nUsuario: ${userMap['username']}\nContraseña: $pwd\n\nSaludos,\nEquipo BM BARBER.',
-                  },
+                final String userEmail = userMap['email'];
+                final String userName = userMap['name'];
+                final int userId = userMap['id'];
+
+                // 2. Generate OTP
+                final String otp = (100000 + (DateTime.now().millisecond * 899)).toString().substring(0, 6);
+                
+                if (context.mounted) Navigator.pop(context); // Close first dialog
+
+                // 3. Send Email (SMTP)
+                final emailSent = await EmailService.sendOTP(
+                  toEmail: userEmail,
+                  toName: userName,
+                  otpCode: otp,
                 );
-                await launchUrl(emailLaunchUri);
+
+                if (!emailSent) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Error al enviar el correo. Verifica tu conexión o configuración SMTP.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                // 4. Show OTP Verification Dialog
+                if (context.mounted) {
+                  _showOtpVerificationDialog(userId, otp, userName);
+                }
+
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Usuario o correo no encontrado.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
-              if (mounted) Navigator.pop(context);
             },
             child: const Text(
               'ENVIAR',
@@ -613,6 +644,112 @@ class _LoginScreenState extends State<LoginScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOtpVerificationDialog(int userId, String correctOtp, String userName) {
+    final otpCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        title: Text('VERIFICACIÓN', style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Se ha enviado un código a tu correo. Ingresalo para continuar.', style: GoogleFonts.outfit(color: Colors.white70)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: otpCtrl,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                counterText: "",
+                filled: true,
+                fillColor: const Color(0xFF262626),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR', style: TextStyle(color: Colors.white38))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
+            onPressed: () {
+              if (otpCtrl.text == correctOtp) {
+                Navigator.pop(context);
+                _showNewPasswordDialog(userId);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Código incorrecto'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('VERIFICAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNewPasswordDialog(int userId) {
+    final passCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        title: Text('NUEVA CONTRASEÑA', style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Establece tu nueva contraseña de acceso.', style: GoogleFonts.outfit(color: Colors.white70)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: passCtrl,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Nueva Contraseña',
+                labelStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: const Color(0xFF262626),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
+            onPressed: () async {
+              if (passCtrl.text.isEmpty) return;
+              
+              final db = await DatabaseHelper().database;
+              await db.update(
+                'users',
+                {'password': passCtrl.text},
+                where: 'id = ?',
+                whereArgs: [userId],
+              );
+
+              if (mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contraseña actualizada con éxito'), backgroundColor: Colors.green),
+                );
+              }
+            },
+            child: const Text('GUARDAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

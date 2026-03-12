@@ -40,10 +40,11 @@ class InventoryRepositoryImpl implements InventoryRepository {
         imageUrl: product.imageUrl,
       );
 
+      final map = productModel.toMap();
       if (product.id == null) {
-        await db.insert('products', productModel.toMap());
+        map.remove('id');
+        await db.insert('products', map);
       } else {
-        final map = productModel.toMap();
         map.remove('id');
         await db.update(
           'products',

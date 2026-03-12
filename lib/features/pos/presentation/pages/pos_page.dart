@@ -15,16 +15,13 @@ import '../../../auth/presentation/pages/staff_page.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/presentation/bloc/user_bloc.dart';
 import '../../../auth/presentation/bloc/user_event.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../reports/presentation/pages/reports_page.dart';
 import '../../../booking/presentation/pages/booking_page.dart';
 import '../../../expenses/presentation/pages/expenses_page.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
 import 'package:posbarber/core/database/database_helper.dart';
 import 'package:posbarber/core/utils/pwa_installer.dart';
-import 'package:posbarber/core/theme/bloc/theme_bloc.dart';
-import 'package:posbarber/core/theme/bloc/theme_event.dart';
-import 'package:posbarber/core/theme/bloc/theme_state.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -39,10 +36,20 @@ class PosPage extends StatefulWidget {
 }
 
 class _PosPageState extends State<PosPage> {
+  void _loadData() {
+    if (!mounted) return;
+    final authState = context.read<AuthBloc>().state;
+    String? userName;
+    if (authState is Authenticated) {
+      userName = authState.user.name;
+    }
+    context.read<PosBloc>().add(LoadPosData(userName: userName));
+  }
+
   @override
   void initState() {
     super.initState();
-    context.read<PosBloc>().add(LoadPosData());
+    _loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstLoginRequirements();
     });
@@ -235,7 +242,7 @@ class _PosPageState extends State<PosPage> {
             ),
             const SizedBox(width: 10),
             const Text(
-              'Posbarber',
+              'BM BARBER',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -360,7 +367,7 @@ class _PosPageState extends State<PosPage> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Posbarber',
+                          'BM BARBER',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -404,13 +411,12 @@ class _PosPageState extends State<PosPage> {
                   leading: const Icon(Icons.event_note_rounded),
                   title: const Text('Agenda de Turnos'),
                   onTap: () async {
-                    final posBloc = context.read<PosBloc>();
                     final nav = Navigator.of(context);
                     nav.pop();
                     await nav.push(
                       MaterialPageRoute(builder: (_) => const BookingPage()),
                     );
-                    posBloc.add(LoadPosData());
+                    _loadData();
                   },
                 ),
                 if (isAdmin)
@@ -418,7 +424,6 @@ class _PosPageState extends State<PosPage> {
                     leading: const Icon(Icons.inventory_2),
                     title: const Text('Inventario'),
                     onTap: () async {
-                      final posBloc = context.read<PosBloc>();
                       final nav = Navigator.of(context);
                       nav.pop();
                       await nav.push(
@@ -426,50 +431,45 @@ class _PosPageState extends State<PosPage> {
                           builder: (_) => const InventoryPage(),
                         ),
                       );
-                      posBloc.add(LoadPosData());
+                      _loadData();
                     },
                   ),
-                if (isAdmin)
-                  ListTile(
-                    leading: const Icon(Icons.payments_outlined),
-                    title: const Text('Control de Gastos'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ExpensesPage()),
-                      );
-                    },
-                  ),
-                const Divider(),
-                BlocBuilder<ThemeBloc, ThemeState>(
-                  builder: (context, themeState) {
-                    final isDarkMode = themeState.themeMode == ThemeMode.dark;
-                    return SwitchListTile(
-                      secondary: Icon(
-                        isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                        color: const Color(0xFFC5A028),
-                      ),
-                      title: const Text('Modo Oscuro'),
-                      value: isDarkMode,
-                      activeThumbColor: const Color(0xFFC5A028),
-                      onChanged: (value) {
-                        context.read<ThemeBloc>().add(ToggleTheme());
-                      },
+                ListTile(
+                  leading: const Icon(Icons.payments_outlined),
+                  title: const Text('Control de Gastos'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ExpensesPage()),
                     );
+                    _loadData();
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: const Text('Ajustes'),
+                  subtitle: const Text('Seguridad y apariencia'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                    _loadData();
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.people),
                   title: const Text('Clientes'),
                   onTap: () async {
-                    final posBloc = context.read<PosBloc>();
                     final nav = Navigator.of(context);
                     nav.pop();
                     await nav.push(
                       MaterialPageRoute(builder: (_) => const CustomersPage()),
                     );
-                    posBloc.add(LoadPosData());
+                    _loadData();
                   },
                 ),
                 if (isAdmin || isHeadBarber)
@@ -477,13 +477,12 @@ class _PosPageState extends State<PosPage> {
                     leading: const Icon(Icons.bar_chart),
                     title: const Text('Reportes'),
                     onTap: () async {
-                      final posBloc = context.read<PosBloc>();
-                      final nav = Navigator.of(context);
-                      nav.pop();
-                      await nav.push(
-                        MaterialPageRoute(builder: (_) => const ReportsPage()),
-                      );
-                      posBloc.add(LoadPosData());
+                    final nav = Navigator.of(context);
+                    nav.pop();
+                    await nav.push(
+                      MaterialPageRoute(builder: (_) => const ReportsPage()),
+                    );
+                    _loadData();
                     },
                   ),
                 if (isAdmin) ...[
@@ -491,13 +490,12 @@ class _PosPageState extends State<PosPage> {
                     leading: const Icon(Icons.badge),
                     title: const Text('Personal'),
                     onTap: () async {
-                      final posBloc = context.read<PosBloc>();
                       final nav = Navigator.of(context);
                       nav.pop();
                       await nav.push(
                         MaterialPageRoute(builder: (_) => const StaffPage()),
                       );
-                      posBloc.add(LoadPosData());
+                      _loadData();
                     },
                   ),
                   if (kIsWeb)
@@ -533,64 +531,65 @@ class _PosPageState extends State<PosPage> {
                       },
                     ),
                   const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.refresh, color: Colors.red),
-                    title: const Text(
-                      'Reiniciar Base de Datos',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                    onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('¿Reiniciar Base de Datos?'),
-                          content: const Text(
-                            'Se borrarán todos los datos y se cargarán los productos por defecto (Barba, Corte, Bebidas, etc).',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancelar'),
+                  if (isAdmin)
+                    ListTile(
+                      leading: const Icon(Icons.refresh, color: Colors.red),
+                      title: const Text(
+                        'Reiniciar Base de Datos',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onTap: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('¿Reiniciar Base de Datos?'),
+                            content: const Text(
+                              'Se borrarán todos los datos y se cargarán los productos por defecto (Barba, Corte, Bebidas, etc).',
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text(
-                                'Sí, Reiniciar',
-                                style: TextStyle(color: Colors.red),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancelar'),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-
-                      if (confirm == true) {
-                        try {
-                          await DatabaseHelper().resetDatabase();
-                          if (mounted) {
-                            context.read<PosBloc>().add(LoadPosData());
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Base de datos reiniciada con éxito',
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text(
+                                  'Sí, Reiniciar',
+                                  style: TextStyle(color: Colors.red),
                                 ),
-                                backgroundColor: Colors.green,
                               ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error al reiniciar: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          try {
+                            await DatabaseHelper().resetDatabase();
+                            if (mounted) {
+                              _loadData();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Base de datos reiniciada con éxito',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error al reiniciar: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
                         }
-                      }
-                    },
-                  ),
+                      },
+                    ),
                 ],
               ],
             ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dartz/dartz.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/error/failures.dart';
@@ -30,6 +31,7 @@ class AuthRepositoryImpl implements AuthRepository {
         await sharedPreferences.setInt('user_id', userModel.id!);
         await sharedPreferences.setString('user_name', userModel.name);
         await sharedPreferences.setString('user_role', userModel.role.name);
+        debugPrint('[Auth] Session saved for user: ${userModel.username}');
 
         return Right(userModel);
       } else {
@@ -50,16 +52,8 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User?>> getCheckAuth() async {
     final userId = sharedPreferences.getInt('user_id');
+    debugPrint('[Auth] Checking session for userId: $userId');
     if (userId == null) return const Right(null);
-
-    final useBiometrics = sharedPreferences.getBool('use_biometrics') ?? false;
-
-    // No prompt here for initial check, only return session if exists
-    // Biometrics should be triggered on demand in LoginScreen
-    if (useBiometrics) {
-      // Return null to force normal login and let LoginPage handle biometrics
-      return const Right(null);
-    }
 
     try {
       final db = await databaseHelper.database;
@@ -70,10 +64,14 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       if (maps.isNotEmpty) {
-        return Right(UserModel.fromMap(maps.first));
+        final user = UserModel.fromMap(maps.first);
+        debugPrint('[Auth] Session restored for: ${user.username}');
+        return Right(user);
       }
+      debugPrint('[Auth] No user found in DB for id: $userId');
       return const Right(null);
     } catch (e) {
+      debugPrint('[Auth] Database error in checkAuth: $e');
       return Left(DatabaseFailure(e.toString()));
     }
   }
@@ -129,7 +127,13 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       return const Right(null);
     } catch (e) {
-      return Left(DatabaseFailure(e.toString()));
+      final errorStr = e.toString();
+      if (errorStr.contains('UNIQUE constraint failed')) {
+        return const Left(
+          AuthFailure('El nombre de usuario o email ya está registrado.'),
+        );
+      }
+      return Left(DatabaseFailure(errorStr));
     }
   }
 

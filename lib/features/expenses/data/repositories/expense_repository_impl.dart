@@ -11,13 +11,25 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
   ExpenseRepositoryImpl({required this.dbHelper});
 
   @override
-  Future<Either<Failure, List<Expense>>> getExpenses() async {
+  Future<Either<Failure, List<Expense>>> getExpenses([String? userName]) async {
     try {
       final db = await dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        'expenses',
-        orderBy: 'due_date ASC',
-      );
+      
+      final List<Map<String, dynamic>> maps;
+      if (userName != null) {
+        maps = await db.query(
+          'expenses',
+          where: 'user_name = ?',
+          whereArgs: [userName],
+          orderBy: 'due_date ASC',
+        );
+      } else {
+        maps = await db.query(
+          'expenses',
+          orderBy: 'due_date ASC',
+        );
+      }
+      
       return Right(maps.map((map) => ExpenseModel.fromMap(map)).toList());
     } catch (e) {
       return Left(DatabaseFailure('Error al cargar gastos: $e'));
@@ -29,15 +41,18 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     try {
       final db = await dbHelper.database;
       final model = ExpenseModel.fromEntity(expense);
+      final map = model.toMap();
       if (model.id != null) {
+        map.remove('id');
         await db.update(
           'expenses',
-          model.toMap(),
+          map,
           where: 'id = ?',
           whereArgs: [model.id],
         );
       } else {
-        await db.insert('expenses', model.toMap());
+        map.remove('id');
+        await db.insert('expenses', map);
       }
       return const Right(null);
     } catch (e) {

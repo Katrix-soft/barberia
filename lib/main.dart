@@ -19,7 +19,6 @@ import 'features/booking/presentation/bloc/booking_event.dart';
 import 'features/expenses/presentation/bloc/expense_bloc.dart';
 import 'features/expenses/presentation/bloc/expense_event.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'core/services/sync_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'injection_container.dart' as di;
 
@@ -28,8 +27,8 @@ void main() async {
   await initializeDateFormatting('es_ES', null);
   await di.init();
   
-  // Start Offline Sync Service
-  di.sl<SyncService>().startAutoSync();
+  // Finalized initialization for standalone mode
+  // di.init() already handles local dependencies
   
   // Initialize Push Notifications (Web)
   await PushNotificationService.initialize();

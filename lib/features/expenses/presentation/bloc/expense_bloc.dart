@@ -6,6 +6,7 @@ import 'expense_state.dart';
 
 class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
   final ExpenseRepository repository;
+  String? _lastUserName;
 
   ExpenseBloc({required this.repository}) : super(const ExpenseState()) {
     on<LoadExpenses>(_onLoadExpenses);
@@ -18,8 +19,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     LoadExpenses event,
     Emitter<ExpenseState> emit,
   ) async {
+    _lastUserName = event.userName;
     emit(state.copyWith(status: ExpenseStatus.loading));
-    final result = await repository.getExpenses();
+    final result = await repository.getExpenses(event.userName);
     result.fold(
       (failure) => emit(
         state.copyWith(
@@ -48,7 +50,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
       ),
       (_) {
         emit(state.copyWith(status: ExpenseStatus.success));
-        add(LoadExpenses());
+        add(LoadExpenses(userName: _lastUserName));
       },
     );
   }
@@ -65,7 +67,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
           errorMessage: failure.message,
         ),
       ),
-      (_) => add(LoadExpenses()),
+      (_) => add(LoadExpenses(userName: _lastUserName)),
     );
   }
 
@@ -79,6 +81,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
       amount: event.expense.amount,
       dueDate: event.expense.dueDate,
       category: event.expense.category,
+      userName: event.expense.userName,
       isPaid: !event.expense.isPaid,
     );
     final result = await repository.saveExpense(updated);
@@ -96,7 +99,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
             lastUpdatedExpense: updated,
           ),
         );
-        add(LoadExpenses());
+        add(LoadExpenses(userName: _lastUserName));
       },
     );
   }

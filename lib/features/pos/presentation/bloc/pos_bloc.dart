@@ -8,6 +8,7 @@ import 'pos_state.dart';
 class PosBloc extends Bloc<PosEvent, PosState> {
   final PosRepository repository;
   final ExpenseRepository expenseRepository;
+  String? _lastUserName;
 
   PosBloc({required this.repository, required this.expenseRepository})
     : super(const PosState()) {
@@ -22,11 +23,15 @@ class PosBloc extends Bloc<PosEvent, PosState> {
   }
 
   Future<void> _onLoadPosData(LoadPosData event, Emitter<PosState> emit) async {
+    _lastUserName = event.userName;
     emit(state.copyWith(status: PosStatus.loading));
+    
     final productsResult = await repository.getProducts();
     final customersResult = await repository.getCustomers();
     final dailySalesResult = await repository.getDailySales(DateTime.now());
-    final expensesResult = await expenseRepository.getExpenses();
+    
+    // Filter expenses by current user for the dashboard summary
+    final expensesResult = await expenseRepository.getExpenses(event.userName);
 
     double dailyTotal = 0;
     dailySalesResult.fold((_) => null, (total) => dailyTotal = total);
@@ -234,26 +239,6 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         state.copyWith(status: PosStatus.error, errorMessage: failure.message),
       ),
       (saleId) async {
-        final expensesResult = await expenseRepository.getExpenses();
-        final dailySalesResult = await repository.getDailySales(DateTime.now());
-
-        double dailyTotal = 0;
-        dailySalesResult.fold((_) => null, (total) => dailyTotal = total);
-
-        double pendingAmount = 0;
-        double totalExpenses = 0;
-        String? nextExpense;
-
-        expensesResult.fold((_) => null, (expenses) {
-          final pending = expenses.where((e) => !e.isPaid).toList();
-          pendingAmount = pending.fold(0, (sum, e) => sum + e.amount);
-          totalExpenses = expenses.fold(0, (sum, e) => sum + e.amount);
-          if (pending.isNotEmpty) {
-            pending.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-            nextExpense = pending.first.description;
-          }
-        });
-
         emit(
           state.copyWith(
             status: PosStatus.success,
@@ -263,13 +248,9 @@ class PosBloc extends Bloc<PosEvent, PosState> {
             cartItems: [],
             selectedCustomer: null,
             clearCustomer: true,
-            pendingExpensesAmount: pendingAmount,
-            pendingExpenseDescription: nextExpense,
-            dailySalesTotal: dailyTotal,
-            pendingTotalExpenses: totalExpenses,
           ),
         );
-        add(LoadPosData());
+        add(LoadPosData(userName: _lastUserName));
       },
     );
   }
