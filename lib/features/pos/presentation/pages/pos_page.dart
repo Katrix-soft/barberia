@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:intl/intl.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 import '../bloc/pos_bloc.dart';
 import '../bloc/pos_event.dart';
@@ -781,7 +782,12 @@ class _PosPageState extends State<PosPage> {
                 tablet: 3,
                 desktop: 4,
               ),
-              childAspectRatio: 0.75,
+              childAspectRatio: getValueForScreenType(
+                context: context,
+                mobile: 1.1,
+                tablet: 1.2,
+                desktop: 1.3,
+              ),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -802,7 +808,7 @@ class _PosPageState extends State<PosPage> {
     final progress = totalGoal > 0
         ? (earnings / totalGoal).clamp(0.0, 1.0)
         : 0.0;
-    final remaining = (totalGoal - earnings).clamp(0.0, double.infinity);
+    final remaining = totalGoal - earnings; // Can be negative for surplus
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -827,6 +833,7 @@ class _PosPageState extends State<PosPage> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -842,7 +849,11 @@ class _PosPageState extends State<PosPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '\$${earnings.toStringAsFixed(2)}',
+                    NumberFormat.currency(
+                      symbol: '\$',
+                      decimalDigits: 0,
+                      locale: 'es_AR',
+                    ).format(earnings),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
@@ -857,54 +868,66 @@ class _PosPageState extends State<PosPage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: (remaining <= 0 && totalGoal > 0)
+                      ? Colors.green.withOpacity(0.2)
+                      : Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
+                  border: (remaining <= 0 && totalGoal > 0)
+                      ? Border.all(color: Colors.green.withOpacity(0.5))
+                      : null,
                 ),
                 child: Text(
-                  'FALTAN \$${remaining.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFC5A028),
+                  remaining <= 0 && totalGoal > 0
+                      ? (remaining < 0
+                          ? 'SUPERADO POR ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining.abs())} ✨'
+                          : 'META CUMPLIDA! ✨')
+                      : 'FALTAN ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining)}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: (remaining <= 0 && totalGoal > 0)
+                        ? Colors.green
+                        : const Color(0xFFC5A028),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Stack(
-            children: [
-              Container(
-                height: 8,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOutCubic,
-                height: 8,
-                width:
-                    MediaQuery.of(context).size.width *
-                    0.4 *
-                    progress, // Approximation
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFC5A028), Color(0xFFE5C158)],
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFC5A028).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  Container(
+                    height: 8,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 1000),
+                    curve: Curves.easeOutCubic,
+                    height: 8,
+                    width: constraints.maxWidth * progress,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFC5A028), Color(0xFFE5C158)],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFC5A028).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           if (state.pendingExpenseDescription != null) ...[
             const SizedBox(height: 12),
@@ -975,7 +998,7 @@ class _PosPageState extends State<PosPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                flex: 4,
+                flex: 5,
                 child: Container(
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -1051,9 +1074,9 @@ class _PosPageState extends State<PosPage> {
                 ),
               ),
               Expanded(
-                flex: 6, // Give more space to text area
+                flex: 5, // Balanced space
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  padding: const EdgeInsets.fromLTRB(10, 2, 10, 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1085,11 +1108,15 @@ class _PosPageState extends State<PosPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
-                            '\$${product.price.toStringAsFixed(0)}',
+                            NumberFormat.currency(
+                              symbol: '\$',
+                              decimalDigits: 0,
+                              locale: 'es_AR',
+                            ).format(product.price),
                             style: const TextStyle(
                               color: Color(0xFFC5A028),
                               fontWeight: FontWeight.w900,
-                              fontSize: 18,
+                              fontSize: 19, // Highlight price
                             ),
                           ),
                           if (!product.isService)

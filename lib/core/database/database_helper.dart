@@ -34,12 +34,63 @@ class DatabaseHelper {
 
     String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
 
-    return await openDatabase(
-      dbPath,
-      version: 7,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+    try {
+      final db = await openDatabase(
+        dbPath,
+        version: 7,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
+      await _updateServicePrices(db);
+      await _ensureInitialUsers(db);
+      return db;
+    } catch (e) {
+      // Handle error, maybe log it
+      // For now, re-throw or return a database without updates if error occurs
+      // Re-opening without the update call to ensure database is returned
+      final db = await openDatabase(
+        dbPath,
+        version: 7,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
+      await _ensureInitialUsers(db);
+      return db;
+    }
+  }
+
+  Future<void> _ensureInitialUsers(Database db) async {
+    final users = [
+      {'name': 'Enzo', 'username': 'enzo', 'email': 'enzo@barberia.com', 'password': 'enzo', 'role': 'employee', 'daily_rate': 0.0},
+      {'name': 'Mauro', 'username': 'mauro', 'email': 'mauro@barberia.com', 'password': 'mauro', 'role': 'employee', 'daily_rate': 0.0},
+      {'name': 'Franco', 'username': 'franco', 'email': 'franco@barberia.com', 'password': 'franco', 'role': 'headBarber', 'daily_rate': 0.0},
+    ];
+
+    for (var user in users) {
+      final exists = await db.query('users', where: 'username = ?', whereArgs: [user['username']]);
+      if (exists.isEmpty) {
+        await db.insert('users', user);
+      }
+    }
+  }
+
+  Future<void> _updateServicePrices(Database db) async {
+    final updates = {
+      'Corte Clásico': 12000.0,
+      'Corte + Barba': 15000.0,
+      'Barba': 7000.0,
+      'Color Mechitas': 40000.0,
+      'Color Global': 60000.0,
+    };
+
+    for (var entry in updates.entries) {
+      await db.update(
+        'products',
+        {'price': entry.value},
+        where: 'name = ? AND is_service = 1',
+        whereArgs: [entry.key],
+      );
+    }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -187,15 +238,43 @@ class DatabaseHelper {
       'email': 'juan@barberia.com',
       'password': 'juan',
       'role': 'employee',
+      'daily_rate': 0.0,
+    });
+
+    await db.insert('users', {
+      'name': 'Enzo',
+      'username': 'enzo',
+      'email': 'enzo@barberia.com',
+      'password': 'enzo',
+      'role': 'employee',
+      'daily_rate': 0.0,
+    });
+
+    await db.insert('users', {
+      'name': 'Mauro',
+      'username': 'mauro',
+      'email': 'mauro@barberia.com',
+      'password': 'mauro',
+      'role': 'employee',
+      'daily_rate': 0.0,
+    });
+
+    await db.insert('users', {
+      'name': 'Franco',
+      'username': 'franco',
+      'email': 'franco@barberia.com',
+      'password': 'franco',
+      'role': 'headBarber',
+      'daily_rate': 0.0,
     });
 
     // Seed Products (Services)
     final initialServices = [
-      {'name': 'Corte Clásico', 'barcode': 'C001', 'price': 15.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte.png'},
-      {'name': 'Corte + Barba', 'barcode': 'C002', 'price': 25.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte+barba.png'},
-      {'name': 'Barba', 'barcode': 'C003', 'price': 15.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/barba.png'},
-      {'name': 'Color Mechitas', 'barcode': 'C004', 'price': 40.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
-      {'name': 'Color Global', 'barcode': 'C005', 'price': 60.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
+      {'name': 'Corte Clásico', 'barcode': 'C001', 'price': 12000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte.png'},
+      {'name': 'Corte + Barba', 'barcode': 'C002', 'price': 15000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte+barba.png'},
+      {'name': 'Barba', 'barcode': 'C003', 'price': 7000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/barba.png'},
+      {'name': 'Color Mechitas', 'barcode': 'C004', 'price': 40000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
+      {'name': 'Color Global', 'barcode': 'C005', 'price': 60000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
     ];
 
     for (var s in initialServices) {

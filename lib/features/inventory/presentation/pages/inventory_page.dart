@@ -89,6 +89,7 @@ class _InventoryPageState extends State<InventoryPage> {
             }
 
             return ListView.builder(
+              padding: const EdgeInsets.only(bottom: 80),
               itemCount: state.products.length,
               itemBuilder: (context, index) {
                 final product = state.products[index];
