@@ -44,6 +44,8 @@ class _PosPageState extends State<PosPage> {
     if (authState is Authenticated) {
       userName = authState.user.name;
     }
+
+    // Pass the current user's role to the Bloc so it can decide what to load
     context.read<PosBloc>().add(LoadPosData(userName: userName));
   }
 
@@ -401,42 +403,92 @@ class _PosPageState extends State<PosPage> {
                   ),
                 ),
                 if (authState is Authenticated && authState.user.role == UserRole.employee)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFC5A028).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'SALARIO DEL DÍA',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFC5A028),
-                              letterSpacing: 1.2,
-                            ),
+                  BlocBuilder<PosBloc, PosState>(
+                    builder: (context, posState) {
+                      final userName = authState.user.name.trim().toLowerCase();
+                      double grossCommission = 0;
+                      double pendingBalance = 0;
+                      
+                      // Case-insensitive service commission
+                      for (var entry in posState.barberServiceSales.entries) {
+                        if (entry.key.toLowerCase() == userName) {
+                          grossCommission = entry.value * 0.5;
+                          break;
+                        }
+                      }
+
+                      // Case-insensitive pending balance
+                      for (var entry in posState.barberPendingBalance.entries) {
+                        if (entry.key.toLowerCase() == userName) {
+                          pendingBalance = entry.value;
+                          break;
+                        }
+                      }
+
+                      final netTotal = grossCommission - pendingBalance;
+
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC5A028).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '\$${authState.user.dailyRate.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'PAGO ESTIMADO (HOY)',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFFC5A028),
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  Icon(Icons.account_balance_wallet_outlined, size: 14, color: const Color(0xFFC5A028).withOpacity(0.5)),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              _buildSalaryRow('Comisión Bruta (50%)', grossCommission, isBold: false),
+                              const SizedBox(height: 4),
+                              _buildSalaryRow('Saldo A Cuenta', -pendingBalance, isBold: false, color: Colors.redAccent),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Divider(height: 1, color: Colors.white10),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'TOTAL NETO',
+                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Colors.white),
+                                  ),
+                                  Text(
+                                    NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(netTotal),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFFC5A028),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Se descontará al cierre del día',
+                                style: TextStyle(fontSize: 9, color: Colors.grey, fontStyle: FontStyle.italic),
+                              ),
+                            ],
                           ),
-                          const Text(
-                            'Monto acordado con Barbero Jefe',
-                            style: TextStyle(fontSize: 10, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ListTile(
                   leading: const Icon(Icons.point_of_sale_rounded),
@@ -458,7 +510,7 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                   },
                 ),
-                if (isAdmin)
+                if (isAdmin || isHeadBarber)
                   ListTile(
                     leading: const Icon(Icons.inventory_2),
                     title: const Text('Inventario'),
@@ -637,25 +689,32 @@ class _PosPageState extends State<PosPage> {
           );
         },
       ),
-      body: BlocListener<PosBloc, PosState>(
-        listenWhen: (previous, current) =>
-            previous.status != current.status ||
-            previous.errorMessage != current.errorMessage,
-        listener: (context, state) {
-          if (state.status == PosStatus.error && state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.errorMessage!),
-                backgroundColor: Colors.red,
-              ),
-            );
-          } else if (state.status == PosStatus.success) {
-            _showSuccessDialog(context, state);
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, authState) {
+          if (authState is Authenticated) {
+            _loadData();
           }
         },
-        child: ScreenTypeLayout.builder(
-          mobile: (context) => _buildMobileLayout(context),
-          tablet: (context) => _buildTabletLayout(context),
+        child: BlocListener<PosBloc, PosState>(
+          listenWhen: (previous, current) =>
+              previous.status != current.status ||
+              previous.errorMessage != current.errorMessage,
+          listener: (context, state) {
+            if (state.status == PosStatus.error && state.errorMessage != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.errorMessage!),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            } else if (state.status == PosStatus.success) {
+              _showSuccessDialog(context, state);
+            }
+          },
+          child: ScreenTypeLayout.builder(
+            mobile: (context) => _buildMobileLayout(context),
+            tablet: (context) => _buildTabletLayout(context),
+          ),
         ),
       ),
     );
@@ -713,102 +772,118 @@ class _PosPageState extends State<PosPage> {
     final categories = state.availableCategories;
     final filteredProducts = state.filteredProducts;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (state.pendingExpensesAmount != null &&
-            state.pendingExpensesAmount! > 0)
-          _buildFinancialSummary(state),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 16, 12),
-          child: Text(
-            'Categorías',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
+    return RefreshIndicator(
+      onRefresh: () async => _loadData(),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          if (state.pendingExpensesAmount != null && state.pendingExpensesAmount! > 0)
+            SliverToBoxAdapter(
+              child: _buildFinancialSummary(state),
             ),
-          ),
-        ),
-        SizedBox(
-          height: 50,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: ChoiceChip(
-                  label: Text(category),
-                  selected: state.selectedCategory == category,
-                  onSelected: (selected) {
-                    if (selected) {
-                      context.read<PosBloc>().add(SelectCategory(category));
-                    }
-                  },
-                  showCheckmark: false,
-                  labelStyle: TextStyle(
-                    color: state.selectedCategory == category
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
-                  ),
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(20, 20, 16, 12),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                'Categorías',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
                 ),
-              );
-            },
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 32, 16, 16),
-          child: Text(
-            'SERVICIOS Y PRODUCTOS',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2.0,
-              color: Color(0xFFC5A028),
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: GridView.builder(
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 50,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(category),
+                      selected: state.selectedCategory == category,
+                      onSelected: (selected) {
+                        if (selected) {
+                          context.read<PosBloc>().add(SelectCategory(category));
+                        }
+                      },
+                      showCheckmark: false,
+                      labelStyle: TextStyle(
+                        color: state.selectedCategory == category
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SliverPadding(
+            padding: EdgeInsets.fromLTRB(20, 32, 16, 16),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                'SERVICIOS Y PRODUCTOS',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.0,
+                  color: Color(0xFFC5A028),
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
             padding: const EdgeInsets.all(16),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: getValueForScreenType(
-                context: context,
-                mobile: 2,
-                tablet: 3,
-                desktop: 4,
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: getValueForScreenType(
+                  context: context,
+                  mobile: 2,
+                  tablet: 3,
+                  desktop: 4,
+                ),
+                childAspectRatio: getValueForScreenType(
+                  context: context,
+                  mobile: 0.85,
+                  tablet: 0.95,
+                  desktop: 1.1,
+                ),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
               ),
-              childAspectRatio: getValueForScreenType(
-                context: context,
-                mobile: 1.1,
-                tablet: 1.2,
-                desktop: 1.3,
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final product = filteredProducts[index];
+                  return _buildProductCard(product, index);
+                },
+                childCount: filteredProducts.length,
               ),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
             ),
-            itemCount: filteredProducts.length,
-            itemBuilder: (context, index) {
-              final product = filteredProducts[index];
-              return _buildProductCard(product, index);
-            },
           ),
-        ),
-      ],
+          const SliverToBoxAdapter(child: SizedBox(height: 100)), // Bottom padding
+        ],
+      ),
     );
   }
 
   Widget _buildFinancialSummary(PosState state) {
-    final earnings = state.dailySalesTotal;
+    final authState = context.read<AuthBloc>().state;
+    final bool isHeadBarber = authState is Authenticated && authState.user.role == UserRole.headBarber;
+
+    final earnings = isHeadBarber ? state.dailySalesTotal : state.currentUserDailySales;
     final totalGoal = state.pendingExpensesAmount ?? 0;
     final progress = totalGoal > 0
         ? (earnings / totalGoal).clamp(0.0, 1.0)
         : 0.0;
-    final remaining = totalGoal - earnings; // Can be negative for surplus
+    final remaining = (totalGoal - earnings).clamp(0.0, double.infinity); 
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -838,8 +913,8 @@ class _PosPageState extends State<PosPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'RECAUDADO HOY',
+                  Text(
+                    isHeadBarber ? 'RECAUDACIÓN TOTAL HOY' : 'RECAUDADO HOY',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -949,6 +1024,78 @@ class _PosPageState extends State<PosPage> {
                 ),
               ],
             ),
+          ],
+          if (isHeadBarber && state.barberSales.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+            const Text(
+              'RENDIMIENTO POR BARBERO (HOY)',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...state.barberSales.entries.map((e) {
+              final String name = e.key;
+              final double totalValue = e.value;
+              final double serviceValue = state.barberServiceSales[name] ?? 0;
+              final double pendingBalance = state.barberPendingBalance[name] ?? 0;
+              final double commission = serviceValue * 0.5;
+              final double netTotal = commission - pendingBalance;
+              final double percent = earnings > 0 ? totalValue / earnings : 0;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+                              if (pendingBalance > 0)
+                                Text(
+                                  'A Cuenta: -${NumberFormat.currency(symbol: r'$', decimalDigits: 0, locale: 'es_AR').format(pendingBalance)}',
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Bruto: ${NumberFormat.currency(symbol: r'$', decimalDigits: 0, locale: 'es_AR').format(commission)}',
+                              style: const TextStyle(color: Colors.grey, fontSize: 10),
+                            ),
+                            Text(
+                              'NETO: ${NumberFormat.currency(symbol: r'$', decimalDigits: 0, locale: 'es_AR').format(netTotal)}',
+                              style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFC5A028), fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: percent,
+                      backgroundColor: Colors.black12,
+                      color: const Color(0xFFC5A028).withOpacity(0.6),
+                      minHeight: 4,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ],
         ],
       ),
@@ -1575,6 +1722,12 @@ class _PosPageState extends State<PosPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _PaymentMethodButton(
+                label: 'A CUENTA (PERSONAL)',
+                icon: Icons.person_pin_circle_outlined,
+                onTap: () => _showStaffSelectionForACuenta(context, state),
+              ),
               const SizedBox(height: 32),
             ],
           ),
@@ -1585,13 +1738,87 @@ class _PosPageState extends State<PosPage> {
 
   void _finalizeSale(BuildContext context, PaymentMethod method) {
     final authState = context.read<AuthBloc>().state;
-    String userName = 'Empleado';
+    String? userName;
+    
     if (authState is Authenticated) {
       userName = authState.user.name;
+    } else {
+      // If for some reason state is not authenticated, check shared preferences fallback
+      // but ideally we should have a name here.
+      userName = 'Staff';
     }
 
+    debugPrint('[POS] Finalizing sale for user: $userName');
     context.read<PosBloc>().add(ConfirmSale(method, userName));
     Navigator.pop(context);
+  }
+
+  void _showStaffSelectionForACuenta(BuildContext context, PosState state) async {
+    // We need to fetch barbers from UserBloc or DB
+    final db = await DatabaseHelper().database;
+    final staffMaps = await db.query('users', where: 'role != ?', whereArgs: ['admin']);
+    final staffs = staffMaps.map((m) => {
+      'id': m['id'],
+      'name': m['name'],
+      'username': m['username'],
+    }).toList();
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿A cuenta de quién?'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: staffs.length,
+            itemBuilder: (context, index) {
+              final staff = staffs[index];
+              return ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFC5A028),
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                title: Text(staff['name'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text('@${staff['username']}'),
+                onTap: () async {
+                  Navigator.pop(ctx); // Cerrar dialogo staff
+                  Navigator.pop(context); // Cerrar bottom sheet checkout
+                  
+                  // 1. Save Sale as 'personal' attributed to the selected staff member
+                  context.read<PosBloc>().add(ConfirmSale(PaymentMethod.personal, staff['name'] as String));
+
+                  // 2. Create Expense entry
+                  final String itemsDesc = state.cartItems.map((i) => '${i.quantity}x ${i.productName}').join(', ');
+                  await db.insert('expenses', {
+                    'description': 'Consumo Personal: $itemsDesc',
+                    'amount': state.total,
+                    'due_date': DateTime.now().toIso8601String(),
+                    'is_paid': 0,
+                    'category': 'Consumo Personal',
+                    'user_name': staff['name'],
+                    'staff_user_id': staff['id'],
+                    'type': 'consumption',
+                  });
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cargado a la cuenta de ${staff['name']}'),
+                        backgroundColor: Colors.blueGrey,
+                      ),
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void _showCustomerSelectionDialog(BuildContext context, PosState state) {
@@ -1768,10 +1995,33 @@ class _PosPageState extends State<PosPage> {
     // Ensure phone has at least a country code or handle common cases
     final String targetPhone = phone.startsWith('54') ? phone : '54$phone';
     final Uri url = Uri.parse('https://wa.me/$targetPhone?text=$message');
-
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Widget _buildSalaryRow(String label, double amount, {bool isBold = false, Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 11,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(amount),
+          style: TextStyle(
+            color: color ?? Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
   }
 }
 

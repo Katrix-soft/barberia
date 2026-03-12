@@ -23,7 +23,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
-        version: 7,
+        version: 11,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -37,26 +37,59 @@ class DatabaseHelper {
     try {
       final db = await openDatabase(
         dbPath,
-        version: 7,
+        version: 11,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
       await _updateServicePrices(db);
       await _ensureInitialUsers(db);
+      await _ensureInitialInventory(db);
+      await _removeOldProducts(db);
+      await _ensureInitialUsers(db);
+      await _cleanupTestUsers(db);
+      await _repairHistoricalServiceFlags(db);
       return db;
     } catch (e) {
-      // Handle error, maybe log it
-      // For now, re-throw or return a database without updates if error occurs
-      // Re-opening without the update call to ensure database is returned
       final db = await openDatabase(
         dbPath,
-        version: 7,
+        version: 11,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
       await _ensureInitialUsers(db);
+      await _cleanupTestUsers(db);
+      await _repairHistoricalServiceFlags(db);
       return db;
     }
+  }
+
+  Future<void> _cleanupTestUsers(Database db) async {
+    // 1. Delete generic 'Admin' users that are NOT 'nacho'
+    await db.delete('users', where: "name IN ('Admin', 'Administrador', 'admin') AND username NOT IN ('nacho', 'franco')");
+    await db.delete('users', where: "username IN ('admin', 'Administrador', 'Admin') AND username NOT IN ('nacho', 'franco')");
+
+    // 2. Explicitly fix Franco's name if it was set to 'admin'
+    await db.update('users', {'name': 'Franco'}, where: "username = 'franco' AND name IN ('admin', 'Admin', 'Administrador')");
+
+    // 3. Re-attribute sales from generic 'Admin' to 'Franco'
+    await db.update('sales', {'user_name': 'Franco'}, where: "user_name IN ('Admin', 'Administrador', 'admin', 'Empleado') AND user_name != 'Nacho'");
+    
+    // 4. Re-attribute expenses
+    await db.update('expenses', {'user_name': 'Franco'}, where: "user_name IN ('Admin', 'Administrador', 'admin', 'Empleado') AND user_name != 'Nacho'");
+  }
+
+  Future<void> _repairHistoricalServiceFlags(Database db) async {
+    // This updates existing sale_items that were created before the is_service column existed
+    // or before it was properly populated in the POS flow.
+    await db.execute('''
+      UPDATE sale_items 
+      SET is_service = 1 
+      WHERE product_id IN (SELECT id FROM products WHERE is_service = 1)
+      OR product_name IN ('Corte Clásico', 'Corte + Barba', 'Barba', 'Color', 'Corte')
+      OR product_name LIKE '%Corte%' 
+      OR product_name LIKE '%Barba%'
+      OR product_name LIKE '%Servicio%'
+    ''');
   }
 
   Future<void> _ensureInitialUsers(Database db) async {
@@ -64,6 +97,7 @@ class DatabaseHelper {
       {'name': 'Enzo', 'username': 'enzo', 'email': 'enzo@barberia.com', 'password': 'enzo', 'role': 'employee', 'daily_rate': 0.0},
       {'name': 'Mauro', 'username': 'mauro', 'email': 'mauro@barberia.com', 'password': 'mauro', 'role': 'employee', 'daily_rate': 0.0},
       {'name': 'Franco', 'username': 'franco', 'email': 'franco@barberia.com', 'password': 'franco', 'role': 'headBarber', 'daily_rate': 0.0},
+      {'name': 'Nacho', 'username': 'nacho', 'email': 'nacho@barberia.com', 'password': 'nacho', 'role': 'admin', 'daily_rate': 0.0},
     ];
 
     for (var user in users) {
@@ -91,6 +125,40 @@ class DatabaseHelper {
         whereArgs: [entry.key],
       );
     }
+  }
+
+  Future<void> _ensureInitialInventory(Database db) async {
+    final products = [
+      {'name': 'Gaseosa 7up', 'barcode': 'B001', 'price': 1800.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Cerveza Quilmes', 'barcode': 'B002', 'price': 2500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Agua Eco', 'barcode': 'B003', 'price': 1500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Power', 'barcode': 'B004', 'price': 2800.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Baggio Cajita', 'barcode': 'B005', 'price': 1000.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Fresh Pomelo', 'barcode': 'B006', 'price': 1500.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Monster', 'barcode': 'B007', 'price': 3500.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Gatorade', 'barcode': 'B008', 'price': 2800.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Speed', 'barcode': 'B009', 'price': 2300.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Coca Lata', 'barcode': 'B010', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Alfajor Chico', 'barcode': 'S001', 'price': 700.0, 'stock': 20, 'category': 'Snacks', 'is_service': 0},
+      {'name': 'Alfajor Grande', 'barcode': 'S002', 'price': 1000.0, 'stock': 20, 'category': 'Snacks', 'is_service': 0},
+      {'name': 'Fanta Zero Lata', 'barcode': 'B011', 'price': 1500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Sprite Lata', 'barcode': 'B012', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Pepsi Lata', 'barcode': 'B013', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+    ];
+
+    for (var p in products) {
+      final exists = await db.query('products', where: 'name = ?', whereArgs: [p['name']]);
+      if (exists.isEmpty) {
+        await db.insert('products', p);
+      } else {
+        await db.update('products', {'price': p['price']}, where: 'name = ?', whereArgs: [p['name']]);
+      }
+    }
+  }
+
+  Future<void> _removeOldProducts(Database db) async {
+    await db.delete('products', where: 'name = ?', whereArgs: ['Cerveza Corona']);
+    await db.delete('products', where: 'name = ?', whereArgs: ['Agua Mineral']);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -140,19 +208,46 @@ class DatabaseHelper {
     if (oldVersion < 6) {
       try {
         await db.execute('ALTER TABLE expenses ADD COLUMN user_name TEXT DEFAULT "admin"');
-      } catch (e) {
-        // Ignored if already exists
-      }
-      // Ensure products columns exist (legacy safety)
+      } catch (e) {}
       try { await db.execute('ALTER TABLE products ADD COLUMN stock_min INTEGER DEFAULT 5'); } catch (_) {}
       try { await db.execute('ALTER TABLE products ADD COLUMN category TEXT'); } catch (_) {}
     }
     if (oldVersion < 7) {
       try {
         await db.execute('ALTER TABLE users ADD COLUMN daily_rate REAL DEFAULT 0');
-      } catch (e) {
-        // Ignored if already exists
-      }
+      } catch (e) {}
+    }
+    if (oldVersion < 8) {
+      await db.execute('''
+        CREATE TABLE payroll (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          user_name TEXT NOT NULL,
+          date TEXT NOT NULL,
+          amount REAL NOT NULL,
+          payment_method TEXT NOT NULL,
+          notes TEXT,
+          is_synced INTEGER DEFAULT 0,
+          FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+      ''');
+    }
+    if (oldVersion < 9) {
+      try {
+        await db.execute('ALTER TABLE expenses ADD COLUMN staff_user_id INTEGER');
+      } catch (e) {}
+    }
+    if (oldVersion < 10) {
+      try {
+        await db.execute('ALTER TABLE sale_items ADD COLUMN is_service INTEGER DEFAULT 0');
+        await _repairHistoricalServiceFlags(db);
+      } catch (e) {}
+    }
+    if (oldVersion < 11) {
+      try {
+        await db.execute('DELETE FROM sale_items');
+        await db.execute('DELETE FROM sales');
+      } catch (e) {}
     }
   }
 
@@ -219,18 +314,13 @@ class DatabaseHelper {
         quantity INTEGER NOT NULL,
         price REAL NOT NULL,
         total REAL NOT NULL,
+        is_service INTEGER DEFAULT 0,
         FOREIGN KEY (sale_id) REFERENCES sales (id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
 
-    await db.insert('users', {
-      'name': 'Administrador',
-      'username': 'admin',
-      'email': 'admin@barberia.com',
-      'password': 'admin',
-      'role': 'admin',
-    });
+    // Initial user 'Franco' as Head Barber is handled in _ensureInitialUsers
 
     await db.insert('users', {
       'name': 'Barbero Juan',
@@ -283,8 +373,21 @@ class DatabaseHelper {
 
     // Seed Products (Physical Goods)
     final initialProducts = [
-      {'name': 'Cerveza Corona', 'barcode': 'B001', 'price': 4.50, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
-      {'name': 'Agua Mineral', 'barcode': 'B002', 'price': 2.00, 'stock': 50, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Gaseosa 7up', 'barcode': 'B001', 'price': 1800.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Cerveza Quilmes', 'barcode': 'B002', 'price': 2500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Agua Eco', 'barcode': 'B003', 'price': 1500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Power', 'barcode': 'B004', 'price': 2800.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Baggio Cajita', 'barcode': 'B005', 'price': 1000.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Fresh Pomelo', 'barcode': 'B006', 'price': 1500.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Monster', 'barcode': 'B007', 'price': 3500.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Gatorade', 'barcode': 'B008', 'price': 2800.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Speed', 'barcode': 'B009', 'price': 2300.0, 'stock': 12, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Coca Lata', 'barcode': 'B010', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Alfajor Chico', 'barcode': 'S001', 'price': 700.0, 'stock': 20, 'category': 'Snacks', 'is_service': 0},
+      {'name': 'Alfajor Grande', 'barcode': 'S002', 'price': 1000.0, 'stock': 20, 'category': 'Snacks', 'is_service': 0},
+      {'name': 'Fanta Zero Lata', 'barcode': 'B011', 'price': 1500.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Sprite Lata', 'barcode': 'B012', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
+      {'name': 'Pepsi Lata', 'barcode': 'B013', 'price': 2000.0, 'stock': 24, 'category': 'Bebidas', 'is_service': 0},
       {'name': 'Perfume Dior Sauvage (Muestra)', 'barcode': 'P001', 'price': 85.00, 'stock': 5, 'category': 'Perfumes', 'is_service': 0},
       {'name': 'Remera Katrix Black', 'barcode': 'R001', 'price': 30.00, 'stock': 10, 'category': 'Ropa', 'is_service': 0},
     ];
@@ -321,7 +424,25 @@ class DatabaseHelper {
           is_paid INTEGER DEFAULT 0,
           category TEXT NOT NULL,
           user_name TEXT DEFAULT 'admin',
+          staff_user_id INTEGER,
+          type TEXT DEFAULT 'general',
           is_synced INTEGER DEFAULT 0
+        )
+      ''');
+    }
+
+    if (version >= 8) {
+      await db.execute('''
+        CREATE TABLE payroll (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          user_name TEXT NOT NULL,
+          date TEXT NOT NULL,
+          amount REAL NOT NULL,
+          payment_method TEXT NOT NULL,
+          notes TEXT,
+          is_synced INTEGER DEFAULT 0,
+          FOREIGN KEY (user_id) REFERENCES users (id)
         )
       ''');
     }

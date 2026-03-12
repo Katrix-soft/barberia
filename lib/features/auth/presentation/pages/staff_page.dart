@@ -8,6 +8,7 @@ import '../../../../core/services/email_service.dart';
 import '../../domain/entities/user.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_state.dart';
+import '../../../../core/database/database_helper.dart';
 
 class StaffPage extends StatefulWidget {
   const StaffPage({super.key});
@@ -102,20 +103,49 @@ class _StaffPageState extends State<StaffPage> {
                           fontSize: 12,
                         ),
                       ),
-                  ],
+                    IconButton(
+                      icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
+                      tooltip: 'Pagar / Ver Recibos',
+                      onPressed: () => _showPayrollDialog(context, user),
+                    ),
+                   ],
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit_outlined),
-                  onPressed: () => _showUserDialog(context, user: user),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
+                      tooltip: 'Pagar / Ver Recibos',
+                      onPressed: () => _showPayrollDialog(context, user),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _showUserDialog(context, user: user),
+                    ),
+                  ],
                 ),
               );
             },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showUserDialog(context),
-        child: const Icon(Icons.person_add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'history',
+            onPressed: () => _showPayrollHistory(context),
+            label: const Text('Historial Pagos'),
+            icon: const Icon(Icons.history),
+            backgroundColor: Colors.blueGrey,
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'add',
+            onPressed: () => _showUserDialog(context),
+            child: const Icon(Icons.person_add),
+          ),
+        ],
       ),
     );
   }
@@ -258,6 +288,22 @@ class _StaffPageState extends State<StaffPage> {
                               }
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: dailyRateController,
+                            decoration: InputDecoration(
+                              labelText: 'Pago Diario \$ *',
+                              hintText: 'Ej: 5000',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.payments_outlined),
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (value) => value == null || value.isEmpty
+                                ? 'Requerido'
+                                : null,
                           ),
                           if (user != null)
                             Align(
@@ -541,14 +587,283 @@ class _StaffPageState extends State<StaffPage> {
     );
   }
 
+  void _showPayrollDialog(BuildContext context, User user) {
+    final amountController = TextEditingController(text: user.dailyRate > 0 ? user.dailyRate.toStringAsFixed(0) : '');
+    final notesController = TextEditingController();
+    String paymentMethod = 'Efectivo';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('Pagar Sueldo a ${user.name}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   const Text('Registrar pago diario para generar recibo.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                   const SizedBox(height: 16),
+                   TextFormField(
+                     controller: amountController,
+                     decoration: const InputDecoration(labelText: 'Monto a Pagar \$', border: OutlineInputBorder()),
+                     keyboardType: TextInputType.number,
+                   ),
+                   const SizedBox(height: 16),
+                   DropdownButtonFormField<String>(
+                     value: paymentMethod,
+                     decoration: const InputDecoration(labelText: 'Método de Pago', border: OutlineInputBorder()),
+                     items: ['Efectivo', 'Transferencia', 'Mercado Pago'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                     onChanged: (val) => setDialogState(() => paymentMethod = val!),
+                   ),
+                   const SizedBox(height: 16),
+                   TextFormField(
+                     controller: notesController,
+                     decoration: const InputDecoration(labelText: 'Notas / Observaciones', border: OutlineInputBorder()),
+                     maxLines: 2,
+                   ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028), foregroundColor: Colors.white),
+                  onPressed: () async {
+                    final amount = double.tryParse(amountController.text) ?? 0.0;
+                    if (amount <= 0) return;
+
+                    // In a real app we'd use a repository, but for speed let's record it
+                    final db = await DatabaseHelper().database;
+                    await db.insert('payroll', {
+                      'user_id': user.id,
+                      'user_name': user.name,
+                      'date': DateTime.now().toIso8601String(),
+                      'amount': amount,
+                      'payment_method': paymentMethod,
+                      'notes': notesController.text,
+                    });
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      _showReceipt(context, user, amount, paymentMethod, notesController.text);
+                    }
+                  },
+                  child: const Text('GENERAR RECIBO'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
+  void _showReceipt(BuildContext context, User user, double amount, String method, String notes) {
+    final now = DateTime.now();
+    final dateStr = '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute}';
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(Icons.content_cut, color: Colors.black, size: 30),
+                  Text('RECIBO DE PAGO', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 18)),
+                ],
+              ),
+              const Divider(color: Colors.black),
+              const SizedBox(height: 16),
+              _receiptRow('Fecha:', dateStr),
+              _receiptRow('Empleado:', user.name),
+              _receiptRow('Cuil/Usuario:', user.username),
+              _receiptRow('Método:', method),
+              if (notes.isNotEmpty) _receiptRow('Detalle:', notes),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('TOTAL PAGADO:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                    Text('\$${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.black)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Text('___________________________', style: TextStyle(color: Colors.grey)),
+              const Text('Firma del Responsable', style: TextStyle(fontSize: 10, color: Colors.grey)),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      label: const Text('CERRAR'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white),
+                      onPressed: () {
+                        // Copy as text for WhatsApp
+                        final text = '*RECIBO DE PAGO - Katrix*\n\n'
+                                   'Fecha: $dateStr\n'
+                                   'Empleado: ${user.name}\n'
+                                   'Método: $method\n'
+                                   'Monto: \$${amount.toStringAsFixed(0)}\n'
+                                   '--------------------------\n'
+                                   'Gracias por tu trabajo.';
+                        Clipboard.setData(ClipboardData(text: text));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Recibo copiado para WhatsApp!')));
+                      },
+                      icon: const Icon(Icons.share),
+                      label: const Text('COMPARTIR'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDataRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(label, style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(width: 8),
-          Expanded(child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 13))),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPayrollHistory(BuildContext context) async {
+    final db = await DatabaseHelper().database;
+    final history = await db.query('payroll', orderBy: 'date DESC');
+    
+    if (!context.mounted) return;
+
+    // Calculate last month total
+    final now = DateTime.now();
+    final lastMonth = DateTime(now.year, now.month - 1, now.day);
+    double lastMonthTotal = 0;
+    for (var entry in history) {
+      final date = DateTime.parse(entry['date'] as String);
+      if (date.isAfter(lastMonth)) {
+        lastMonthTotal += (entry['amount'] as num).toDouble();
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                   Icon(Icons.history, color: Color(0xFFC5A028)),
+                   SizedBox(width: 8),
+                   Text('Historial de Sueldos', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total Últimos 30 días:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('\$${lastMonthTotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.green, fontSize: 18)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 300,
+                child: history.isEmpty 
+                  ? const Center(child: Text('No hay registros de pagos aún.'))
+                  : ListView.separated(
+                      itemCount: history.length,
+                      separatorBuilder: (_, __) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final item = history[index];
+                        final date = DateTime.parse(item['date'] as String);
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item['user_name'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text('${date.day}/${date.month}/${date.year} - ${item['payment_method']}'),
+                          trailing: Text('\$${(item['amount'] as num).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                        );
+                      },
+                    ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CERRAR'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
         ],
       ),
     );

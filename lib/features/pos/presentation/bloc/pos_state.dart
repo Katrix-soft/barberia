@@ -22,6 +22,10 @@ class PosState extends Equatable {
   final double pendingTotalExpenses;
   final List<String> availableCategories;
   final List<Product> filteredProducts;
+  final Map<String, double> barberSales;
+  final Map<String, double> barberServiceSales;
+  final Map<String, double> barberPendingBalance;
+  final double currentUserDailySales;
 
   const PosState({
     this.status = PosStatus.initial,
@@ -40,6 +44,10 @@ class PosState extends Equatable {
     this.pendingTotalExpenses = 0.0,
     this.availableCategories = const ['Todos'],
     this.filteredProducts = const [],
+    this.barberSales = const {},
+    this.barberServiceSales = const {},
+    this.barberPendingBalance = const {},
+    this.currentUserDailySales = 0.0,
   });
 
   double get total => cartItems.fold(0, (sum, item) => sum + item.total);
@@ -63,6 +71,10 @@ class PosState extends Equatable {
     double? pendingTotalExpenses,
     List<String>? availableCategories,
     List<Product>? filteredProducts,
+    Map<String, double>? barberSales,
+    Map<String, double>? barberServiceSales,
+    Map<String, double>? barberPendingBalance,
+    double? currentUserDailySales,
   }) {
     return PosState(
       status: status ?? this.status,
@@ -86,6 +98,10 @@ class PosState extends Equatable {
       pendingTotalExpenses: pendingTotalExpenses ?? this.pendingTotalExpenses,
       availableCategories: availableCategories ?? this.availableCategories,
       filteredProducts: filteredProducts ?? this.filteredProducts,
+      barberSales: barberSales ?? this.barberSales,
+      barberServiceSales: barberServiceSales ?? this.barberServiceSales,
+      barberPendingBalance: barberPendingBalance ?? this.barberPendingBalance,
+      currentUserDailySales: currentUserDailySales ?? this.currentUserDailySales,
     );
   }
 
@@ -107,5 +123,9 @@ class PosState extends Equatable {
     pendingTotalExpenses,
     availableCategories,
     filteredProducts,
+    barberSales,
+    barberServiceSales,
+    barberPendingBalance,
+    currentUserDailySales,
   ];
 }

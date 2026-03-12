@@ -61,6 +61,7 @@ class PosRepositoryImpl implements PosRepository {
             quantity: item.quantity,
             price: item.price,
             total: item.total,
+            isService: item.isService,
           );
           await txn.insert('sale_items', itemModel.toMap());
 

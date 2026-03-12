@@ -56,6 +56,7 @@ class SaleItemModel extends SaleItem {
     required super.quantity,
     required super.price,
     required super.total,
+    super.isService = false,
   });
 
   factory SaleItemModel.fromMap(Map<String, dynamic> map) {
@@ -67,6 +68,7 @@ class SaleItemModel extends SaleItem {
       quantity: map['quantity'],
       price: (map['price'] as num).toDouble(),
       total: (map['total'] as num).toDouble(),
+      isService: (map['is_service'] ?? 0) == 1,
     );
   }
 
@@ -79,6 +81,7 @@ class SaleItemModel extends SaleItem {
       'quantity': quantity,
       'price': price,
       'total': total,
+      'is_service': isService ? 1 : 0,
     };
   }
 }

@@ -9,6 +9,7 @@ import 'package:posbarber/features/pos/presentation/bloc/pos_bloc.dart';
 import 'package:posbarber/features/pos/presentation/bloc/pos_event.dart';
 import 'package:posbarber/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:posbarber/features/auth/presentation/bloc/auth_state.dart';
+import 'package:posbarber/core/database/database_helper.dart';
 
 class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
@@ -26,8 +27,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
       _currentUserName = authState.user.name;
-      // If employee, only their expenses. If admin, show everything (or could also be filtered)
-      // The user said "independiente del resto", I'll filter by user for everyone.
+      // Filter by the logged-in user's name
       context.read<ExpenseBloc>().add(LoadExpenses(userName: _currentUserName));
     } else {
       context.read<ExpenseBloc>().add(const LoadExpenses());
@@ -177,9 +177,15 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final bool isOverdue =
         !expense.isPaid && expense.dueDate.isBefore(DateTime.now());
 
+    final bool isConsumption = expense.category == 'Consumo Personal';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isConsumption ? Colors.orange.withOpacity(0.05) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: isConsumption ? const BorderSide(color: Colors.orange, width: 0.5) : BorderSide.none,
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: Container(
@@ -223,30 +229,32 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ),
             const SizedBox(height: 4),
             GestureDetector(
-              onTap: () => context.read<ExpenseBloc>().add(
-                ToggleExpensePaidEvent(expense),
-              ),
+              onTap: isConsumption 
+                ? null // "A cuenta" items are read-only for the barber ("eso no se toca")
+                : () => context.read<ExpenseBloc>().add(
+                    ToggleExpensePaidEvent(expense),
+                  ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: expense.isPaid
                       ? Colors.green.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
+                      : (isConsumption ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  expense.isPaid ? 'PAGADO' : 'PENDIENTE',
+                  isConsumption ? 'A CUENTA' : (expense.isPaid ? 'PAGADO' : 'PENDIENTE'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: expense.isPaid ? Colors.green : Colors.grey,
+                    color: expense.isPaid ? Colors.green : (isConsumption ? Colors.orange : Colors.grey),
                   ),
                 ),
               ),
             ),
           ],
         ),
-        onLongPress: () => _showDeleteConfirm(expense),
+        onLongPress: isConsumption ? null : () => _showDeleteConfirm(expense),
       ),
     );
   }
@@ -264,6 +272,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
         return Icons.wifi;
       case 'insumos':
         return Icons.shopping_basket;
+      case 'consumo personal':
+        return Icons.fastfood_outlined;
       default:
         return Icons.receipt_long;
     }
@@ -298,114 +308,216 @@ class _ExpensesPageState extends State<ExpensesPage> {
     String selectedCategory = 'Insumos';
     DateTime selectedDate = DateTime.now();
     bool isSaving = false;
+    
+    // Fetch staff if headBarber
+    final authState = context.read<AuthBloc>().state;
+    final bool isHeadBarber = authState is Authenticated && authState.user.role == 'headBarber';
+    String targetUserName = _currentUserName ?? 'admin';
+    List<Map<String, dynamic>> staffList = [];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Registrar Gasto Propio'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: descController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción',
-                    hintText: 'Ej: Tijeras nuevas, Alquiler de silla',
+        builder: (ctx, setDialogState) {
+          if (isHeadBarber && staffList.isEmpty) {
+            DatabaseHelper().database.then((db) async {
+              final users = await db.query('users', where: "role != 'admin'");
+              if (ctx.mounted) {
+                setDialogState(() {
+                  staffList = users;
+                });
+              }
+            });
+          }
+          return AlertDialog(
+            title: Text(isHeadBarber ? 'Asignar Gasto / Insumo' : 'Registrar Gasto Propio'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: descController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      hintText: 'Ej: Tijeras nuevas, Alquiler de silla',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: amountController,
-                  decoration: const InputDecoration(labelText: 'Monto (\$)'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Categoría'),
-                  items:
-                      [
-                            'Insumos',
-                            'Alquiler',
-                            'Luz',
-                            'Internet',
-                            'Agua',
-                            'Mantenimiento',
-                            'Otros',
-                          ]
-                          .map(
-                            (c) => DropdownMenuItem(value: c, child: Text(c)),
-                          )
-                          .toList(),
-                  onChanged: (val) =>
-                      setDialogState(() => selectedCategory = val!),
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  title: const Text('Fecha'),
-                  subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 90),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    decoration: const InputDecoration(labelText: 'Monto (\$)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    decoration: const InputDecoration(labelText: 'Categoría'),
+                    items: [
+                      'Insumos',
+                      'Alquiler',
+                      'Luz',
+                      'Internet',
+                      'Agua',
+                      'Mantenimiento',
+                      'Otros',
+                    ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) => setDialogState(() => selectedCategory = val!),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    title: const Text('Fecha'),
+                    subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now().subtract(const Duration(days: 90)),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (date != null) setDialogState(() => selectedDate = date);
+                    },
+                  ),
+                  if (isHeadBarber) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    const Text('ASIGNAR A:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: targetUserName,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.person_search, color: Color(0xFFC5A028)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) setDialogState(() => selectedDate = date);
-                  },
-                ),
-              ],
+                      items: staffList.map((u) => DropdownMenuItem(
+                        value: u['name'] as String,
+                        child: Text(u['name'] as String),
+                      )).toList(),
+                      onChanged: (val) => setDialogState(() => targetUserName = val!),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving 
+                  ? null 
+                  : () {
+                      if (descController.text.isEmpty || amountController.text.isEmpty) return;
+                      final amount = double.tryParse(amountController.text.replaceAll(',', '.')) ?? 0;
+                      if (amount <= 0) return;
+
+                      setDialogState(() => isSaving = true);
+
+                      context.read<ExpenseBloc>().add(
+                        AddExpenseEvent(
+                          Expense(
+                            description: descController.text,
+                            amount: amount,
+                            dueDate: selectedDate,
+                            category: selectedCategory,
+                            userName: targetUserName,
+                          ),
+                        ),
+                      );
+                      Navigator.pop(ctx);
+                      
+                      if (isHeadBarber && targetUserName != _currentUserName) {
+                        _showBossConfirmationReceipt(context, targetUserName, descController.text, amount);
+                      }
+                    },
+                child: isSaving 
+                  ? const SizedBox(
+                      width: 20, 
+                      height: 20, 
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                    )
+                  : const Text('Guardar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showBossConfirmationReceipt(BuildContext context, String barberName, String desc, double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFC5A028), width: 2),
+            gradient: LinearGradient(
+              colors: [Colors.black, Colors.grey[900]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: isSaving 
-                ? null 
-                : () {
-                    if (descController.text.isEmpty ||
-                        amountController.text.isEmpty) {
-                      return;
-                    }
-                    final amount =
-                        double.tryParse(
-                          amountController.text.replaceAll(',', '.'),
-                        ) ??
-                        0;
-                    if (amount <= 0) return;
-
-                    setDialogState(() => isSaving = true);
-
-                    context.read<ExpenseBloc>().add(
-                      AddExpenseEvent(
-                        Expense(
-                          description: descController.text,
-                          amount: amount,
-                          dueDate: selectedDate,
-                          category: selectedCategory,
-                          userName: _currentUserName ?? 'admin',
-                        ),
-                      ),
-                    );
-                    Navigator.pop(ctx);
-                  },
-              child: isSaving 
-                ? const SizedBox(
-                    width: 20, 
-                    height: 20, 
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                  )
-                : const Text('Guardar'),
-            ),
-          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.receipt_long, color: Color(0xFFC5A028), size: 64),
+              const SizedBox(height: 16),
+              const Text(
+                '¡CARGO REALIZADO!',
+                style: TextStyle(color: Color(0xFFC5A028), fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 2),
+              ),
+              const Divider(color: Color(0xFFC5A028), height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('BARBERO:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(barberName.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('CARGO:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(desc, style: const TextStyle(color: Colors.white)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('MONTO:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text('\$${amount.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xFFC5A028), fontWeight: FontWeight.w900, fontSize: 24)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Este monto se descontará automáticamente de sus ganancias en el próximo reporte.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 11, fontStyle: FontStyle.italic),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFC5A028),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('ENTENDIDO', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

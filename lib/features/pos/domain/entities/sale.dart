@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum PaymentMethod { cash, transfer, card }
+enum PaymentMethod { cash, transfer, card, personal }
 
 class Sale extends Equatable {
   final int? id;
@@ -47,6 +47,7 @@ class SaleItem extends Equatable {
   final int quantity;
   final double price;
   final double total;
+  final bool isService;
 
   const SaleItem({
     this.id,
@@ -56,6 +57,7 @@ class SaleItem extends Equatable {
     required this.quantity,
     required this.price,
     required this.total,
+    this.isService = false,
   });
 
   @override
@@ -67,5 +69,6 @@ class SaleItem extends Equatable {
     quantity,
     price,
     total,
+    isService,
   ];
 }

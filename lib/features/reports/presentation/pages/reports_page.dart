@@ -36,9 +36,11 @@ class _ReportsPageState extends State<ReportsPage> {
       _futureData = Future.wait([
         posRepo.getSales(),
         expenseRepo.getExpenses(),
+        DatabaseHelper().database.then((db) => db.query('users')),
       ]).then((results) {
-        final salesResult = results[0] as dynamic; // Either<Failure, List<Sale>>
-        final expensesResult = results[1] as dynamic; // Either<Failure, List<Expense>>
+        final salesResult = results[0] as dynamic; 
+        final expensesResult = results[1] as dynamic; 
+        final users = results[2] as List<Map<String, dynamic>>;
         
         List<Sale> sales = [];
         List<Expense> expenses = [];
@@ -49,6 +51,7 @@ class _ReportsPageState extends State<ReportsPage> {
         return {
           'sales': sales,
           'expenses': expenses,
+          'users': users,
         };
       });
     });
@@ -140,9 +143,14 @@ class _ReportsPageState extends State<ReportsPage> {
               _buildWeeklyChart(filteredSales),
               const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: Text(' HISTORIAL DE MOVIMIENTOS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                child: Text('VENTAS POR BARBERO', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
-              ...filteredSales.take(10).map((sale) => _SaleCard(sale: sale)),
+              _buildBarberMetrics(filteredSales, snapshot.data!['users']),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('HISTORIAL DE MOVIMIENTOS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              ),
+              ...filteredSales.take(20).map((sale) => _SaleCard(sale: sale)),
             ],
           );
         },
@@ -163,7 +171,17 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
       child: Column(
         children: [
-          const Text('BALANCE GENERAL (HISTÓRICO)', style: TextStyle(letterSpacing: 1.5, fontSize: 12, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.analytics_outlined, size: 14, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(
+                'BALANCE GENERAL (${_getCurrentUserRoleLabel(context)})',
+                style: const TextStyle(letterSpacing: 1.5, fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -290,6 +308,148 @@ class _ReportsPageState extends State<ReportsPage> {
       ),
     );
   }
+
+  String _getCurrentUserRoleLabel(BuildContext context) {
+    final state = context.read<AuthBloc>().state;
+    if (state is Authenticated) {
+      switch (state.user.role) {
+        case UserRole.admin: return 'ADMINISTRADOR';
+        case UserRole.headBarber: return 'BARBERO JEFE';
+        case UserRole.employee: return 'BARBERO';
+      }
+    }
+    return 'USUARIO';
+  }
+
+  Widget _buildBarberMetrics(List<Sale> sales, List<Map<String, dynamic>> allUsers) {
+    final Map<String, double> barberSales = {};
+    final Map<String, double> barberServiceSales = {};
+    final Map<String, double> barberConsumption = {};
+    
+    // 1. Get metrics from sales/expenses
+    for (var sale in sales) {
+      if (sale.paymentMethod == PaymentMethod.personal) {
+        barberConsumption[sale.userName] = (barberConsumption[sale.userName] ?? 0) + sale.total;
+      } else {
+        barberSales[sale.userName] = (barberSales[sale.userName] ?? 0) + sale.total;
+        
+        // Sum total of only services for commissions
+        double serviceTotal = 0;
+        for (var item in sale.items) {
+          if (item.isService) {
+            serviceTotal += item.total;
+          }
+        }
+        barberServiceSales[sale.userName] = (barberServiceSales[sale.userName] ?? 0) + serviceTotal;
+      }
+    }
+
+    // 2. Identify which barbers to show
+    // We want to show all 'employee' and 'headBarber' users
+    final List<String> staffNamesToDisplay = [];
+    for (var u in allUsers) {
+      final role = u['role'];
+      final name = (u['name'] as String).toLowerCase();
+      // Strictly exclude test/admin names if they linger, or just stick to roles
+      if ((role == 'employee' || role == 'headBarber') && 
+          name != 'admin' && name != 'administrador') {
+        staffNamesToDisplay.add(u['name'] as String);
+      }
+    }
+
+    if (staffNamesToDisplay.isEmpty) return const SizedBox.shrink();
+
+    final totalRevenue = barberSales.values.fold(0.0, (sum, val) => sum + val);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...staffNamesToDisplay.map((barber) {
+                final saleVal = barberSales[barber] ?? 0;
+                final serviceVal = barberServiceSales[barber] ?? 0;
+                final consVal = barberConsumption[barber] ?? 0;
+                final percentage = totalRevenue == 0 ? 0.0 : saleVal / totalRevenue;
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: const Color(0xFFC5A028).withOpacity(0.1),
+                            child: Text(barber.isNotEmpty ? barber.substring(0, 1).toUpperCase() : '?', style: const TextStyle(color: Color(0xFFC5A028), fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(barber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text('Recaudado: \$${saleVal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('Comisión (50% serv): \$${(serviceVal * 0.5).toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                                if (consVal > 0)
+                                  Text('Consumo: -\$${consVal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Neto: \$${((serviceVal * 0.5) - consVal).toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    color: ((serviceVal * 0.5) - consVal) >= 0 ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: percentage,
+                          backgroundColor: Colors.grey[100],
+                          color: const Color(0xFFC5A028),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Center(
+                  child: Text(
+                    'Total Recaudado por Barbers: \$${totalRevenue.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC5A028), fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SaleCard extends StatelessWidget {
@@ -298,11 +458,33 @@ class _SaleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPersonal = sale.paymentMethod == PaymentMethod.personal;
     return ListTile(
-      leading: const Icon(Icons.circle, size: 10, color: Color(0xFFC5A028)),
-      title: Text('Venta #${sale.id} - ${sale.customerName ?? 'Mostrador'}'),
-      subtitle: Text(DateFormat('dd/MM HH:mm').format(sale.date)),
-      trailing: Text('\$${sale.total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (isPersonal ? Colors.orange : const Color(0xFFC5A028)).withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          isPersonal ? Icons.person_pin_circle_outlined : Icons.monetization_on_outlined,
+          size: 16,
+          color: isPersonal ? Colors.orange : const Color(0xFFC5A028),
+        ),
+      ),
+      title: Row(
+        children: [
+          Expanded(child: Text('${sale.customerName ?? 'Mostrador'}', style: const TextStyle(fontWeight: FontWeight.bold))),
+          if (isPersonal)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+              child: const Text('A CUENTA', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+      subtitle: Text('${DateFormat('dd/MM HH:mm').format(sale.date)} • Atendido por: ${sale.userName}'),
+      trailing: Text('\$${sale.total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
     );
   }
 }
