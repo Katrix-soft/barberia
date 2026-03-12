@@ -13,7 +13,7 @@ RUN flutter pub get
 # Copiar el resto y construir
 COPY . .
 # Usamos el modo release con configuración optimizada
-RUN flutter build web --release --no-tree-shake-icons
+RUN flutter build web --release --no-tree-shake-icons --web-renderer canvaskit
 
 
 

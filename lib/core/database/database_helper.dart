@@ -1,5 +1,5 @@
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'dart:io' show Platform;
@@ -19,7 +19,9 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
+    debugPrint('[DB] Initializing database...');
     if (kIsWeb) {
+      debugPrint('[DB] Platform: Web');
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
@@ -28,11 +30,15 @@ class DatabaseHelper {
         onUpgrade: _onUpgrade,
       );
     } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      debugPrint('[DB] Platform: Desktop (${Platform.operatingSystem})');
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
+    } else {
+      debugPrint('[DB] Platform: Mobile (${Platform.isAndroid ? 'Android' : 'iOS'})');
     }
 
     String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
+    debugPrint('[DB] Database path: $dbPath');
 
     try {
       final db = await openDatabase(
@@ -41,24 +47,26 @@ class DatabaseHelper {
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
-      await _updateServicePrices(db);
+      debugPrint('[DB] Database opened successfully');
+      
+      // Essential post-open tasks
       await _ensureInitialUsers(db);
       await _ensureInitialInventory(db);
-      await _removeOldProducts(db);
-      await _ensureInitialUsers(db);
-      await _cleanupTestUsers(db);
+      await _updateServicePrices(db);
       await _repairHistoricalServiceFlags(db);
+      await _cleanupTestUsers(db);
+      
       return db;
     } catch (e) {
+      debugPrint('[DB] Error during primary open: $e');
+      // Fallback open without complex logic if primary fails
       final db = await openDatabase(
         dbPath,
         version: 11,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
-      await _ensureInitialUsers(db);
-      await _cleanupTestUsers(db);
-      await _repairHistoricalServiceFlags(db);
+      await _ensureInitialUsers(db); // Always ensure users even on error
       return db;
     }
   }
@@ -156,10 +164,6 @@ class DatabaseHelper {
     }
   }
 
-  Future<void> _removeOldProducts(Database db) async {
-    await db.delete('products', where: 'name = ?', whereArgs: ['Cerveza Corona']);
-    await db.delete('products', where: 'name = ?', whereArgs: ['Agua Mineral']);
-  }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {

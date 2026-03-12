@@ -231,7 +231,7 @@
       // Initialize Flutter
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
-          serviceWorkerVersion: null,
+          serviceWorkerVersion: "$serviceWorkerVersion",
         },
         onEntrypointLoaded: function (engineInitializer) {
           engineInitializer.initializeEngine().then(function (appRunner) {
