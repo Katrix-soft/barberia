@@ -111,15 +111,19 @@ class DatabaseHelper {
     ];
 
     for (var user in users) {
-      final exists = await db.query('users', where: 'username = ?', whereArgs: [user['username']]);
-      if (exists.isEmpty) {
+      final existing = await db.query('users', where: 'username = ?', whereArgs: [user['username']]);
+      if (existing.isEmpty) {
         await db.insert('users', user);
         debugPrint('[DB] User created: ${user['username']}');
       } else {
-        // IMPROVEMENT: For 'nacho', ensure the password is 'nacho' effectively as requested
+        // ALWAYS update nacho to ensure correct password 'nacho'
         if (user['username'] == 'nacho') {
-           await db.update('users', user, where: 'username = ?', whereArgs: ['nacho']);
-           debugPrint('[DB] User updated/ensured: nacho');
+           await db.update('users', {
+             'password': 'nacho',
+             'role': 'admin',
+             'name': 'Nacho'
+           }, where: 'username = ?', whereArgs: ['nacho']);
+           debugPrint('[DB] User nacho RE-VALIDATED');
         }
       }
     }
@@ -272,13 +276,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 18) {
+    if (oldVersion < 19) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] CRITICAL: USERS RE-SEEDED FOR v18');
+        debugPrint('[DB] ABSOLUTE USER RECONSTRUCTION FOR v19');
       } catch (e) {
-        debugPrint('[DB] Error in v18 migration: $e');
+        debugPrint('[DB] Error in v19 migration: $e');
       }
     }
   }
