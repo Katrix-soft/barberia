@@ -70,21 +70,21 @@ class _LoginScreenState extends State<LoginScreen>
       final hasSavedCreds = prefs.getString('saved_email') != null &&
           prefs.getString('saved_password') != null;
 
-      // IMPROVEMENT: Relaxed check. If the device IS SUPPORTED, we show the option.
-      // This allows the user to click it and let the system guide them to enroll if not already done,
-      // or gives us a chance to show a specific error why it's not working yet.
+      // Relaxed check: if the device basic support exists, we offer it.
+      // On some Androids, canCheckBiometrics is false until enrolled.
       final shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
 
-      debugPrint('[Auth] Biometrics check: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+      debugPrint('[Auth] Biometrics check v1.1.6: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
 
       if (mounted) {
         setState(() {
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Auto-trigger ONLY if explicitly enabled by the user previously
-        if (shouldOfferBiometrics && useBiometrics && hasSavedCreds && availableBiometrics.isNotEmpty) {
-          Future.delayed(const Duration(milliseconds: 500), () {
+        // Auto-trigger if enabled and we have credentials
+        if (shouldOfferBiometrics && useBiometrics && hasSavedCreds) {
+          // Increase delay to ensure the OS UI is ready
+          Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) _authenticateWithBiometrics();
           });
         }

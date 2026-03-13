@@ -1,8 +1,8 @@
 {
-  "app_version": "1.1.4",
-  "db_version": 25,
+  "app_version": "1.1.6",
+  "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "REPARACIÓN FINAL PWA & RESET UX v1.1.4...",
+  "message": "CORRECCIONES CRÍTICAS v1.1.6 (PWA, Biometría, Reset)",
   "update_url": "https://barber.katrix.com.ar"
 }

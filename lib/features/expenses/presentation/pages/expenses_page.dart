@@ -5,10 +5,11 @@ import '../bloc/expense_bloc.dart';
 import '../bloc/expense_event.dart';
 import '../bloc/expense_state.dart';
 import '../../domain/entities/expense.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
 import 'package:posbarber/features/pos/presentation/bloc/pos_bloc.dart';
 import 'package:posbarber/features/pos/presentation/bloc/pos_event.dart';
-import 'package:posbarber/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:posbarber/features/auth/presentation/bloc/auth_state.dart';
 import 'package:posbarber/core/database/database_helper.dart';
 
 class ExpensesPage extends StatefulWidget {
@@ -36,6 +37,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -92,6 +96,24 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
             return Column(
               children: [
+                if (isAdmin)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    color: Colors.blue.withOpacity(0.1),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.visibility, color: Colors.blue, size: 20),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'MODO OBSERVADOR: No puedes modificar los gastos.',
+                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 _buildSummaryHeader(pending),
                 Expanded(
                   child: state.expenses.isEmpty
@@ -101,7 +123,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                           itemCount: state.expenses.length,
                           itemBuilder: (context, index) {
                             final expense = state.expenses[index];
-                            return _buildExpenseCard(expense);
+                            return _buildExpenseCard(expense, isAdmin: isAdmin);
                           },
                         ),
                 ),
@@ -110,7 +132,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: isAdmin ? null : FloatingActionButton.extended(
         onPressed: () => _showAddExpenseDialog(context),
         backgroundColor: const Color(0xFFC5A028),
         foregroundColor: Colors.white,
@@ -173,7 +195,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
     );
   }
 
-  Widget _buildExpenseCard(Expense expense) {
+  Widget _buildExpenseCard(Expense expense, {bool isAdmin = false}) {
     final bool isOverdue =
         !expense.isPaid && expense.dueDate.isBefore(DateTime.now());
 
@@ -229,8 +251,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ),
             const SizedBox(height: 4),
             GestureDetector(
-              onTap: isConsumption 
-                ? null // "A cuenta" items are read-only for the barber ("eso no se toca")
+              onTap: (isConsumption || isAdmin)
+                ? null // "A cuenta" items and Admin-observer are read-only
                 : () => context.read<ExpenseBloc>().add(
                     ToggleExpensePaidEvent(expense),
                   ),
@@ -254,7 +276,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ),
           ],
         ),
-        onLongPress: isConsumption ? null : () => _showDeleteConfirm(expense),
+        onLongPress: (isConsumption || isAdmin) ? null : () => _showDeleteConfirm(expense),
       ),
     );
   }

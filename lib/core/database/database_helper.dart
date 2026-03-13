@@ -276,13 +276,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 25) {
+    if (oldVersion < 26) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] FINAL STABILITY RESET FOR v25');
+        debugPrint('[DB] OBSERVER MODE SYNC FOR v26');
       } catch (e) {
-        debugPrint('[DB] Error in v25 migration: $e');
+        debugPrint('[DB] Error in v26 migration: $e');
       }
     }
   }
@@ -496,13 +496,20 @@ class DatabaseHelper {
   }
 
   Future<void> resetDatabase() async {
+    // Close existing database if any
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+
     if (kIsWeb) {
       await databaseFactoryFfiWeb.deleteDatabase('pos_barber.db');
     } else {
       String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
       await databaseFactory.deleteDatabase(dbPath);
     }
-    _database = null;
+    
+    // Re-initialize
     await database;
   }
 }

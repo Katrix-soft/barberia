@@ -4,6 +4,9 @@ import '../bloc/customer_bloc.dart';
 import '../bloc/customer_event.dart';
 import '../bloc/customer_state.dart';
 import '../../domain/entities/customer.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
 
 class CustomersPage extends StatefulWidget {
   const CustomersPage({super.key});
@@ -21,8 +24,23 @@ class _CustomersPageState extends State<CustomersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de Clientes')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Gestión de Clientes'),
+            if (isAdmin)
+              const Text(
+                'MODO OBSERVADOR',
+                style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold),
+              ),
+          ],
+        ),
+      ),
       body: BlocConsumer<CustomerBloc, CustomerState>(
         listenWhen: (previous, current) => previous.status != current.status,
         listener: (context, state) {
@@ -66,13 +84,13 @@ class _CustomersPageState extends State<CustomersPage> {
                 subtitle: Text(
                   '${customer.phone ?? 'Sin teléfono'} | Puntos: ${customer.points}',
                 ),
-                onTap: () => _showCustomerDialog(context, customer: customer),
+                onTap: isAdmin ? null : () => _showCustomerDialog(context, customer: customer),
               );
             },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: isAdmin ? null : FloatingActionButton(
         onPressed: () => _showCustomerDialog(context),
         child: const Icon(Icons.person_add),
       ),

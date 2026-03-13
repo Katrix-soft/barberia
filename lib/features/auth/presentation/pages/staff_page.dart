@@ -56,6 +56,7 @@ class _StaffPageState extends State<StaffPage> {
 
           final authState = context.watch<AuthBloc>().state;
           final currentUser = authState is Authenticated ? authState.user : null;
+          final bool isAdmin = currentUser?.role == UserRole.admin;
           final isHeadBarber = currentUser?.role == UserRole.headBarber;
 
           // Filter users: Head Barbers only see employees
@@ -63,7 +64,28 @@ class _StaffPageState extends State<StaffPage> {
               ? state.users.where((u) => u.role == UserRole.employee).toList()
               : state.users;
 
-          return ListView.builder(
+          return Column(
+            children: [
+              if (isAdmin)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  color: Colors.blue.withOpacity(0.1),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.visibility, color: Colors.blue, size: 20),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'MODO OBSERVADOR: No puedes modificar el personal.',
+                          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: ListView.builder(
             itemCount: visibleUsers.length,
             itemBuilder: (context, index) {
               final user = visibleUsers[index];
@@ -113,40 +135,51 @@ class _StaffPageState extends State<StaffPage> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
-                      tooltip: 'Pagar / Ver Recibos',
-                      onPressed: () => _showPayrollDialog(context, user),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed: () => _showUserDialog(context, user: user),
-                    ),
+                    if (!isAdmin) ...[
+                      IconButton(
+                        icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
+                        tooltip: 'Pagar / Ver Recibos',
+                        onPressed: () => _showPayrollDialog(context, user),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _showUserDialog(context, user: user),
+                      ),
+                    ],
                   ],
                 ),
               );
             },
-          );
-        },
-      ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'history',
-            onPressed: () => _showPayrollHistory(context),
-            label: const Text('Historial Pagos'),
-            icon: const Icon(Icons.history),
-            backgroundColor: Colors.blueGrey,
           ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: 'add',
-            onPressed: () => _showUserDialog(context),
-            child: const Icon(Icons.person_add),
-          ),
-        ],
-      ),
+        ),
+      ],
+    );
+  },
+),
+floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
+  builder: (context, authState) {
+    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+    if (isAdmin) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton.extended(
+          heroTag: 'history',
+          onPressed: () => _showPayrollHistory(context),
+          label: const Text('Historial Pagos'),
+          icon: const Icon(Icons.history),
+          backgroundColor: Colors.blueGrey,
+        ),
+        const SizedBox(height: 16),
+        FloatingActionButton(
+          heroTag: 'add',
+          onPressed: () => _showUserDialog(context),
+          child: const Icon(Icons.person_add),
+        ),
+      ],
+    );
+  },
+),
     );
   }
 

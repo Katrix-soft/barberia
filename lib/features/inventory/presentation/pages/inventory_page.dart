@@ -5,6 +5,9 @@ import '../bloc/inventory_bloc.dart';
 import '../bloc/inventory_event.dart';
 import '../bloc/inventory_state.dart';
 import '../../domain/entities/product.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -22,6 +25,9 @@ class _InventoryPageState extends State<InventoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -50,7 +56,18 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text('Inventario y Servicios'),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Inventario y Servicios', style: TextStyle(fontSize: 16)),
+                if (isAdmin)
+                  const Text(
+                    'MODO OBSERVADOR',
+                    style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -119,7 +136,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   subtitle: Text(
                     'Stock: ${product.stock} | Precio: \$${product.price}',
                   ),
-                  trailing: IconButton(
+                  trailing: isAdmin ? null : IconButton(
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () =>
                         _showProductDialog(context, product: product),
@@ -130,7 +147,7 @@ class _InventoryPageState extends State<InventoryPage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: isAdmin ? null : FloatingActionButton(
         onPressed: () => _showProductDialog(context),
         child: const Icon(Icons.add),
       ),

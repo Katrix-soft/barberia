@@ -219,6 +219,9 @@ class _PosPageState extends State<PosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -257,45 +260,46 @@ class _PosPageState extends State<PosPage> {
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-              onPressed: () async {
-                final barcode = await Navigator.push<String>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
-                );
-                if (barcode != null && mounted) {
-                  final state = context.read<PosBloc>().state;
-                  try {
-                    final product = state.products.firstWhere(
-                      (p) => p.barcode == barcode,
-                    );
-                    context.read<PosBloc>().add(AddProductToCart(product));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Agregado: ${product.name}'),
-                        backgroundColor: Colors.green,
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Producto no encontrado: $barcode'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
+          if (!isAdmin)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                onPressed: () async {
+                  final barcode = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+                  );
+                  if (barcode != null && mounted) {
+                    final state = context.read<PosBloc>().state;
+                    try {
+                      final product = state.products.firstWhere(
+                        (p) => p.barcode == barcode,
+                      );
+                      context.read<PosBloc>().add(AddProductToCart(product));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Agregado: ${product.name}'),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Producto no encontrado: $barcode'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
                   }
-                }
-              },
+                },
+              ),
             ),
-          ),
           Container(
             margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(
@@ -311,9 +315,6 @@ class _PosPageState extends State<PosPage> {
       ),
       drawer: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, authState) {
-          final isAdmin =
-              authState is Authenticated &&
-              authState.user.role == UserRole.admin;
           final isHeadBarber =
               authState is Authenticated &&
               authState.user.role == UserRole.headBarber;
@@ -594,7 +595,29 @@ class _PosPageState extends State<PosPage> {
                     },
                   ),
                 if (isAdmin) ...[
-                  if (kIsWeb)
+                  if (isAdmin)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'MODO OBSERVADOR: Como Admin solo puedes visualizar el sistema.',
+                              style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!isAdmin && kIsWeb)
                     ListTile(
                       leading: const Icon(
                         Icons.install_mobile_rounded,
@@ -626,8 +649,8 @@ class _PosPageState extends State<PosPage> {
                         if (mounted) Navigator.pop(context);
                       },
                     ),
-                  const Divider(),
-                  if (isAdmin)
+                  if (!isAdmin) const Divider(),
+                  if (!isAdmin)
                     ListTile(
                       leading: const Icon(Icons.refresh, color: Colors.red),
                       title: const Text(
@@ -740,42 +763,50 @@ class _PosPageState extends State<PosPage> {
             }
           },
           child: ScreenTypeLayout.builder(
-            mobile: (context) => _buildMobileLayout(context),
-            tablet: (context) => _buildTabletLayout(context),
+            mobile: (context) {
+              final authState = context.read<AuthBloc>().state;
+              final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+              return _buildMobileLayout(context, isAdmin: isAdmin);
+            },
+            tablet: (context) {
+              final authState = context.read<AuthBloc>().state;
+              final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
+              return _buildTabletLayout(context, isAdmin: isAdmin);
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context) {
+  Widget _buildMobileLayout(BuildContext context, {bool isAdmin = false}) {
     return BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
         return Column(
           children: [
-            Expanded(child: _buildProductList(state)),
-            _buildCartSummary(state),
+            Expanded(child: _buildProductList(state, isAdmin: isAdmin)),
+            if (!isAdmin) _buildCartSummary(state),
           ],
         );
       },
     );
   }
 
-  Widget _buildTabletLayout(BuildContext context) {
+  Widget _buildTabletLayout(BuildContext context, {bool isAdmin = false}) {
     return BlocBuilder<PosBloc, PosState>(
       builder: (context, state) {
         return Row(
           children: [
-            Expanded(flex: 2, child: _buildProductList(state)),
+            Expanded(flex: 2, child: _buildProductList(state, isAdmin: isAdmin)),
             const VerticalDivider(width: 1),
-            Expanded(flex: 1, child: _buildCartSidebar(state)),
+            if (!isAdmin) Expanded(flex: 1, child: _buildCartSidebar(state)),
           ],
         );
       },
     );
   }
 
-  Widget _buildProductList(PosState state) {
+  Widget _buildProductList(PosState state, {bool isAdmin = false}) {
     if (state.status == PosStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -890,7 +921,7 @@ class _PosPageState extends State<PosPage> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final product = filteredProducts[index];
-                  return _buildProductCard(product, index);
+                  return _buildProductCard(product, index, isAdmin: isAdmin);
                 },
                 childCount: filteredProducts.length,
               ),
@@ -1164,7 +1195,7 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
-  Widget _buildProductCard(dynamic product, int index) {
+  Widget _buildProductCard(dynamic product, int index, {bool isAdmin = false}) {
     IconData getIcon() {
       if (product.isService) return Icons.content_cut_rounded;
       switch (product.category.toLowerCase()) {
