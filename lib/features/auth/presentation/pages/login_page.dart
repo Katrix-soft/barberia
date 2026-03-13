@@ -82,8 +82,8 @@ class _LoginScreenState extends State<LoginScreen>
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Auto-trigger only if explicitly enabled OR if we have saved credentials and it's likely to work
-        if (shouldOfferBiometrics && (useBiometrics || (hasSavedCreds && availableBiometrics.isNotEmpty))) {
+        // Auto-trigger ONLY if explicitly enabled by the user previously
+        if (shouldOfferBiometrics && useBiometrics && hasSavedCreds && availableBiometrics.isNotEmpty) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _authenticateWithBiometrics();
           });
@@ -211,10 +211,13 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             );
           } else if (state is Authenticated) {
-            // Automatically enable biometrics for next time upon successful login
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('use_biometrics', true);
-            // Credentials are already saved in _submitLogin
+            final hasAsked = prefs.getBool('use_biometrics_asked') ?? false;
+            
+            if (!hasAsked && _isBiometricSupported) {
+               // If it's the first time and biometrics are possible, ask them
+               if (mounted) _showEnableBiometricDialog(context);
+            }
           }
         },
         child: Stack(
@@ -834,6 +837,66 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _showEnableBiometricDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+          side: const BorderSide(color: Color(0xFFC5A028), width: 0.5),
+        ),
+        title: Text(
+          '¿ACTIVAR ACCESO RÁPIDO?',
+          style: GoogleFonts.outfit(
+            color: const Color(0xFFC5A028),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          '¿Te gustaría usar Face ID o Huella para entrar directamente la próxima vez?',
+          style: GoogleFonts.outfit(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('use_biometrics_asked', true);
+              await prefs.setBool('use_biometrics', false);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('AHORA NO', style: TextStyle(color: Colors.white38)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC5A028),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('use_biometrics_asked', true);
+              await prefs.setBool('use_biometrics', true);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Acceso biométrico activado para la próxima vez'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              'SÍ, ACTIVAR',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmNuclearReset(BuildContext context) {

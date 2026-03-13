@@ -1,8 +1,8 @@
 {
-  "app_version": "1.1.1",
-  "db_version": 22,
+  "app_version": "1.1.2",
+  "db_version": 23,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "REPARACIÓN FINAL SETTINGS & PWA v1.1.1...",
+  "message": "FLUJO BIOMÉTRICO MEJORADO v1.1.2...",
   "update_url": "https://barber.katrix.com.ar"
 }
