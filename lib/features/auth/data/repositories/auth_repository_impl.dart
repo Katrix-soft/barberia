@@ -22,7 +22,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final db = await databaseHelper.database;
       final List<Map<String, dynamic>> maps = await db.query(
         'users',
-        where: '(email = ? OR username = ?) AND password = ?',
+        where: '(LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)) AND password = ?',
         whereArgs: [email, email, password],
       );
 

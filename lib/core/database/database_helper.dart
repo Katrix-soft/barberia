@@ -260,6 +260,16 @@ class DatabaseHelper {
         await db.execute('DELETE FROM sales');
       } catch (e) {}
     }
+    if (oldVersion < 13) {
+      try {
+        await db.execute('DELETE FROM sales');
+        await db.execute('DELETE FROM sale_items');
+        await db.execute('DELETE FROM expenses');
+        await db.execute('DELETE FROM payroll');
+        await db.execute('DELETE FROM appointments');
+        debugPrint('[DB] FULL RESET PERFORMED for version 13');
+      } catch (e) {}
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -463,7 +473,7 @@ class DatabaseHelper {
     final db = await database;
     final results = await db.query(
       'users',
-      where: 'email = ? OR username = ?',
+      where: 'LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)',
       whereArgs: [identifier, identifier],
     );
     if (results.isNotEmpty) return results.first;
