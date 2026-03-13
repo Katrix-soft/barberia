@@ -276,13 +276,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 21) {
+    if (oldVersion < 22) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] PWA & BIOMETRIC SYNC RESET FOR v21');
+        debugPrint('[DB] FINAL AUDIT RESET FOR v22');
       } catch (e) {
-        debugPrint('[DB] Error in v21 migration: $e');
+        debugPrint('[DB] Error in v22 migration: $e');
       }
     }
   }

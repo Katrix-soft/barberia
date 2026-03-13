@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/utils/version_info.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
 import '../../../../core/theme/bloc/theme_state.dart';
@@ -37,8 +38,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _checkBiometricSupport() async {
     final isSupported = await _auth.isDeviceSupported();
     final canCheck = await _auth.canCheckBiometrics;
+    final available = await _auth.getAvailableBiometrics();
     setState(() {
-      _isBiometricSupported = isSupported || canCheck;
+      _isBiometricSupported = isSupported || canCheck || available.isNotEmpty;
     });
   }
 
@@ -167,9 +169,9 @@ class _SettingsPageState extends State<SettingsPage> {
               context,
               icon: Icons.info_outline_rounded,
               title: 'Versión',
-              subtitle: 'BM BARBER v0.1.0',
+              subtitle: 'BM BARBER v${VersionInfo.appVersion}',
               trailing:
-                  Text('Beta', style: TextStyle(color: isDark ? Colors.grey : Colors.black38)),
+                  Text('Premium', style: TextStyle(color: isDark ? Colors.grey : Colors.black38)),
             ),
             const SizedBox(height: 60),
             Padding(
