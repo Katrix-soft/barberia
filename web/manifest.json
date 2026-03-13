@@ -5,10 +5,12 @@
   "scope": "/",
   "id": "katrix-barber-luxury-pos",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#C5A028",
   "description": "Sistema POS Profesional para BM BARBER",
+  "categories": ["business", "lifestyle"],
   "icons": [
     {
       "src": "icons/icon-192.png",

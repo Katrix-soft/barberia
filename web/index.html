@@ -232,10 +232,7 @@
 
       // Initialize Flutter
       _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: "$serviceWorkerVersion",
-          timeout: 4000,
-        },
+        serviceWorker: null,
         onEntrypointLoaded: function (engineInitializer) {
           engineInitializer.initializeEngine().then(function (appRunner) {
             appRunner.runApp();
