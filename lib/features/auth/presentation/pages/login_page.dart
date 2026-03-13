@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:js' as js;
 import '../../../../core/services/email_service.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/utils/browser_utils.dart';
@@ -63,19 +64,34 @@ class _LoginScreenState extends State<LoginScreen>
     await Future.delayed(const Duration(milliseconds: 1000));
     
     try {
-      final isSupported = await auth.isDeviceSupported();
-      final canCheckBiometrics = await auth.canCheckBiometrics;
-      final List<BiometricType> availableBiometrics =
-          await auth.getAvailableBiometrics();
-
       final prefs = await SharedPreferences.getInstance();
       final useBiometrics = prefs.getBool('use_biometrics') ?? false;
       final hasSavedCreds = prefs.getString('saved_email') != null &&
           prefs.getString('saved_password') != null;
 
-      final shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
+      bool shouldOfferBiometrics = false;
 
-      debugPrint('[Auth] Biometrics check v1.1.7: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+      if (kIsWeb) {
+        // Direct JS call for PWA stability
+        try {
+          final dynamic result = js.context.callMethod('checkWebBiometrics');
+          if (result is Future) {
+            shouldOfferBiometrics = (await result) == true;
+          } else {
+            shouldOfferBiometrics = result == true;
+          }
+           debugPrint('[Auth] Web Biometrics check v1.1.9: supported=$shouldOfferBiometrics');
+        } catch (e) {
+          debugPrint('[Auth] Web Biometrics check failed: $e');
+        }
+      } else {
+        final isSupported = await auth.isDeviceSupported();
+        final canCheckBiometrics = await auth.canCheckBiometrics;
+        final List<BiometricType> availableBiometrics =
+            await auth.getAvailableBiometrics();
+        shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
+        debugPrint('[Auth] Native Biometrics check v1.1.9: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+      }
 
       if (mounted) {
         setState(() {
@@ -84,7 +100,15 @@ class _LoginScreenState extends State<LoginScreen>
 
         // Auto-trigger logic
         if (shouldOfferBiometrics && useBiometrics && hasSavedCreds) {
-          if (availableBiometrics.isEmpty) {
+          // availableBiometrics check only on mobile
+          bool hasEnrollment = true;
+          if (!kIsWeb) {
+            // Re-fetch to ensure we have the list
+            final enrolled = await auth.getAvailableBiometrics();
+            if (enrolled.isEmpty) hasEnrollment = false;
+          }
+
+          if (!hasEnrollment) {
              debugPrint('[Auth] Supposed to auto-trigger but no biometrics enrolled.');
              return;
           }

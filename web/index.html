@@ -274,6 +274,18 @@
       return false;
     };
 
+    window.checkWebBiometrics = async () => {
+      try {
+        if (window.PublicKeyCredential && 
+            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+          return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        }
+      } catch (e) {
+        console.error('Biometric check failed:', e);
+      }
+      return false;
+    };
+
     document.getElementById('install-button').addEventListener('click', async () => {
       await window.installPWA();
     });

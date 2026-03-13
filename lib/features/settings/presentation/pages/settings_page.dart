@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:js' as js;
 import '../../../../core/utils/version_info.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
@@ -40,17 +42,30 @@ class _SettingsPageState extends State<SettingsPage> {
     await Future.delayed(const Duration(milliseconds: 500));
     
     try {
-      final isSupported = await _auth.isDeviceSupported();
-      final canCheck = await _auth.canCheckBiometrics;
-      final available = await _auth.getAvailableBiometrics();
+      bool isSupported = false;
+      if (kIsWeb) {
+        try {
+          final dynamic result = js.context.callMethod('checkWebBiometrics');
+          if (result is Future) {
+            isSupported = (await result) == true;
+          } else {
+            isSupported = result == true;
+          }
+        } catch (e) {
+          debugPrint('[Settings] Web Biometric check failed: $e');
+        }
+      } else {
+        final deviceSupported = await _auth.isDeviceSupported();
+        final canCheck = await _auth.canCheckBiometrics;
+        final available = await _auth.getAvailableBiometrics();
+        isSupported = deviceSupported || canCheck || available.isNotEmpty;
+      }
       
       if (mounted) {
         setState(() {
-          // On some Androids, canCheck is false if no biometrics are enrolled
-          // but isDeviceSupported is true.
-          _isBiometricSupported = isSupported || canCheck || available.isNotEmpty;
+          _isBiometricSupported = isSupported;
         });
-        debugPrint('[Settings] Biometric Support: supported=$isSupported, canCheck=$canCheck, enrolled=${available.isNotEmpty}');
+        debugPrint('[Settings] Biometric Support Status: $isSupported');
       }
     } catch (e) {
       debugPrint('[Settings] Error checking biometrics: $e');
