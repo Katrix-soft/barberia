@@ -285,17 +285,6 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Custom Service Worker Registration
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js').then(function (reg) {
-          console.log('Katrix PWA Service Worker Registered');
-        }).catch(function (err) {
-          console.log('SW Registration failed: ', err);
-        });
-      });
-    }
-
     // Web Push Subscription Helper
     window.subscribeToPush = async function(publicKey, apiUrl) {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {

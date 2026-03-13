@@ -16,9 +16,10 @@ const ASSETS_TO_CACHE = [
 
 // Install Event - Pre-cache core assets
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing version: ', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Pre-caching core assets');
+      console.log('[SW] Pre-caching core assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -46,12 +47,39 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // 1. CRITICAL: NEVER CACHE version.json or index.html or main.dart.js with Cache-First
+  // Use Network First for these to ensure updates are detected and logic is fresh.
+  const isCoreLogic = 
+    url.pathname.endsWith('version.json') || 
+    url.pathname.endsWith('index.html') || 
+    url.pathname.endsWith('main.dart.js') ||
+    url.pathname === '/' ||
+    url.pathname === './';
+
+  if (isCoreLogic) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
   // Strategy: Network First for API and dynamic data
   if (url.pathname.includes('/api/') || url.search.includes('api')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // If successful, clone it to cache for offline fallback
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
@@ -59,17 +87,14 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // If network fails, try to get from cache
           return caches.match(event.request);
         })
     );
     return;
   }
 
-  // Strategy: Cache First for static assets (JS, CSS, Fonts, Images)
+  // Strategy: Cache First for truly static assets (Images, Fonts, WASM)
   const isStaticAsset = 
-    url.pathname.endsWith('.js') || 
-    url.pathname.endsWith('.css') || 
     url.pathname.endsWith('.png') || 
     url.pathname.endsWith('.jpg') || 
     url.pathname.endsWith('.woff2') || 
@@ -82,7 +107,7 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) return cachedResponse;
         
         return fetch(event.request).then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          if (!networkResponse || networkResponse.status !== 200) {
             return networkResponse;
           }
           const responseToCache = networkResponse.clone();
