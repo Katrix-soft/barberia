@@ -21,55 +21,56 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     debugPrint('[DB] Initializing database...');
+    Database db;
     if (kIsWeb) {
       debugPrint('[DB] Platform: Web');
       databaseFactory = databaseFactoryFfiWeb;
-      return await openDatabase(
+      db = await openDatabase(
         'pos_barber.db',
         version: VersionInfo.dbVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
-    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      debugPrint('[DB] Platform: Desktop (${Platform.operatingSystem})');
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
     } else {
-      debugPrint('[DB] Platform: Mobile (${Platform.isAndroid ? 'Android' : 'iOS'})');
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        debugPrint('[DB] Platform: Desktop (${Platform.operatingSystem})');
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      } else {
+        debugPrint('[DB] Platform: Mobile (${Platform.isAndroid ? 'Android' : 'iOS'})');
+      }
+
+      String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
+      debugPrint('[DB] Database path: $dbPath');
+
+      try {
+        db = await openDatabase(
+          dbPath,
+          version: VersionInfo.dbVersion,
+          onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+        );
+      } catch (e) {
+        debugPrint('[DB] Error during primary open: $e');
+        db = await openDatabase(
+          dbPath,
+          version: VersionInfo.dbVersion,
+          onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+        );
+      }
     }
 
-    String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
-    debugPrint('[DB] Database path: $dbPath');
-
-    try {
-      final db = await openDatabase(
-        dbPath,
-        version: VersionInfo.dbVersion,
-        onCreate: _onCreate,
-        onUpgrade: _onUpgrade,
-      );
-      debugPrint('[DB] Database opened successfully');
-      
-      // Essential post-open tasks
-      await _ensureInitialUsers(db);
-      await _ensureInitialInventory(db);
-      await _updateServicePrices(db);
-      await _repairHistoricalServiceFlags(db);
-      await _cleanupTestUsers(db);
-      
-      return db;
-    } catch (e) {
-      debugPrint('[DB] Error during primary open: $e');
-      // Fallback open without complex logic if primary fails
-      final db = await openDatabase(
-        dbPath,
-        version: VersionInfo.dbVersion,
-        onCreate: _onCreate,
-        onUpgrade: _onUpgrade,
-      );
-      await _ensureInitialUsers(db); // Always ensure users even on error
-      return db;
-    }
+    debugPrint('[DB] Database opened successfully');
+    
+    // ESSENTIAL: These tasks must run on ALL platforms after open
+    await _ensureInitialUsers(db);
+    await _ensureInitialInventory(db);
+    await _updateServicePrices(db);
+    await _repairHistoricalServiceFlags(db);
+    await _cleanupTestUsers(db);
+    
+    return db;
   }
 
   Future<void> _cleanupTestUsers(Database db) async {
@@ -271,14 +272,12 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 15) {
+    if (oldVersion < 16) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] USERS RESET PERFORMED for version 15');
-      } catch (e) {
-        debugPrint('[DB] Error resetting users in v15: $e');
-      }
+        debugPrint('[DB] USERS RESET PERFORMED for version 16');
+      } catch (e) {}
     }
   }
 
