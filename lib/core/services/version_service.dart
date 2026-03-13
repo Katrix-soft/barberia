@@ -18,18 +18,25 @@ class VersionService {
         
         final String remoteAppVersion = data['app_version'] ?? VersionInfo.appVersion;
         final int remoteDbVersion = data['db_version'] ?? VersionInfo.dbVersion;
-        final bool forceUpdate = data['force_update'] ?? false;
         final bool maintenanceMode = data['maintenance_mode'] ?? false;
 
-        bool needsAppUpdate = _compareVersions(VersionInfo.appVersion, remoteAppVersion) < 0 || forceUpdate;
+        // CRITICAL FIX: Only trigger update if remote version is NEWER.
+        // If forceUpdate is true but we are ALREADY on that version or newer, 
+        // we MUST NOT trigger an update to avoid infinite reload loops.
+        bool needsAppUpdate = _compareVersions(VersionInfo.appVersion, remoteAppVersion) < 0;
         bool needsDbUpdate = VersionInfo.dbVersion < remoteDbVersion;
+        
+        // If it's a force update, it just confirms we MUST update if we are behind.
+        // If we are not behind, we ignore it.
+        bool finalNeedsUpdate = needsAppUpdate || needsDbUpdate;
 
         return {
-          'needsUpdate': needsAppUpdate || needsDbUpdate || maintenanceMode,
+          'needsUpdate': finalNeedsUpdate || maintenanceMode,
           'maintenanceMode': maintenanceMode,
           'message': data['message'] ?? 'Nueva versión disponible',
           'appVersion': remoteAppVersion,
           'dbVersion': remoteDbVersion,
+          'currentLocalVersion': VersionInfo.appVersion, // Useful for debug
           'update_url': data['update_url'] ?? '',
         };
       }

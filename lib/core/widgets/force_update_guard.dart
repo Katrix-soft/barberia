@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/version_service.dart';
 import '../utils/browser_utils.dart';
+import '../utils/version_info.dart';
 
 class ForceUpdateGuard extends StatefulWidget {
   final Widget child;
@@ -144,6 +145,23 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
                       fontSize: 12, 
                       color: Colors.amber.withOpacity(0.8),
                       letterSpacing: 2,
+                    ),
+                  ),
+                const SizedBox(height: 60),
+                // DEBUG INFO (Subtle)
+                Opacity(
+                  opacity: 0.3,
+                  child: Text(
+                    'Local: ${VersionInfo.appVersion} | Remota: $_message', // _message often contains info
+                    style: const TextStyle(fontSize: 10, color: Colors.white),
+                  ),
+                ),
+                if (_updateUrl.isNotEmpty)
+                   Opacity(
+                    opacity: 0.3,
+                    child: Text(
+                      'Link: $_updateUrl',
+                      style: const TextStyle(fontSize: 8, color: Colors.white),
                     ),
                   ),
               ],
