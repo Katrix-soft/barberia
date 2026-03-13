@@ -492,14 +492,31 @@ class _LoginScreenState extends State<LoginScreen>
                         ],
 
                         const SizedBox(height: 60),
-                        Text(
-                          'PREMIUM EDITION v${VersionInfo.appVersion}',
-                          style: GoogleFonts.outfit(
-                            color: Colors.white12,
-                            fontSize: 11,
-                            letterSpacing: 3,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Column(
+                          children: [
+                            Text(
+                              'PREMIUM EDITION v${VersionInfo.appVersion}',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white12,
+                                fontSize: 11,
+                                letterSpacing: 3,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // NUCLEAR RESET (Subtle diagnostic tool)
+                            TextButton(
+                              onPressed: () => _confirmNuclearReset(context),
+                              child: Text(
+                                '¿PROBLEMAS? RESETEAR APP',
+                                style: TextStyle(
+                                  color: Colors.red.withOpacity(0.2),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -815,5 +832,43 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _animationController.dispose();
     super.dispose();
+  void _confirmNuclearReset(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('RESETEO NUCLEAR', style: TextStyle(color: Colors.red)),
+        content: const Text(
+          'Esto borrará TODA la base de datos local y cerrará todas las sesiones. ¿Estás seguro?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              await DatabaseHelper().resetDatabase();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sistema reseteado. Reiniciando...')),
+                );
+                Future.delayed(const Duration(seconds: 1), () {
+                  if (kIsWeb) {
+                    BrowserUtils.hardReload();
+                  }
+                });
+              }
+            },
+            child: const Text('BORRAR TODO', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

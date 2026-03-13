@@ -20,6 +20,17 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, User>> login(String email, String password) async {
     try {
       final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> userCheck = await db.query(
+        'users',
+        where: 'LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)',
+        whereArgs: [email, email],
+      );
+
+      if (userCheck.isEmpty) {
+        debugPrint('[Auth] No user found with identifier: $email');
+        return const Left(AuthFailure('Usuario no encontrado'));
+      }
+
       final List<Map<String, dynamic>> maps = await db.query(
         'users',
         where: '(LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)) AND password = ?',
@@ -35,7 +46,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
         return Right(userModel);
       } else {
-        return const Left(AuthFailure('Credenciales incorrectas'));
+        debugPrint('[Auth] Invalid password for user: $email');
+        return const Left(AuthFailure('Contraseña incorrecta'));
       }
     } catch (e) {
       return Left(DatabaseFailure('Error de base de datos: ${e.toString()}'));

@@ -271,6 +271,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
+    if (oldVersion < 14) {
+      try {
+        // Force re-creation of base users to ensure 'nacho' is definitely there
+        await db.execute('DELETE FROM users');
+        debugPrint('[DB] USERS PURGED for version 14 update');
+      } catch (e) {}
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
