@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'dart:io' show Platform;
+import '../utils/version_info.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
