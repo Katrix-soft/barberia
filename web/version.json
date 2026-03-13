@@ -1,8 +1,8 @@
 {
-  "app_version": "1.0.8",
-  "db_version": 19,
+  "app_version": "1.0.9",
+  "db_version": 20,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "RECONSTRUCCIÓN DE USUARIO v1.0.8 - Nacho Fix...",
+  "message": "RESETEO FINAL ABSOLUTO v1.0.9 - Nacho Fix...",
   "update_url": "https://barber.katrix.com.ar"
 }

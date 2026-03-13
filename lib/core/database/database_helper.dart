@@ -276,13 +276,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 19) {
+    if (oldVersion < 20) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] ABSOLUTE USER RECONSTRUCTION FOR v19');
+        debugPrint('[DB] FINAL COMPATIBILITY RESET FOR v20');
       } catch (e) {
-        debugPrint('[DB] Error in v19 migration: $e');
+        debugPrint('[DB] Error in v20 migration: $e');
       }
     }
   }
