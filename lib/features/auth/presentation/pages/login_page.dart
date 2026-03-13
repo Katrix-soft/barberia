@@ -512,8 +512,8 @@ class _LoginScreenState extends State<LoginScreen>
                               child: Text(
                                 '¿PROBLEMAS? RESETEAR APP',
                                 style: TextStyle(
-                                  color: Colors.red.withOpacity(0.2),
-                                  fontSize: 9,
+                                  color: Colors.red.withOpacity(0.5),
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),

@@ -1,6 +1,6 @@
 class VersionInfo {
-  static const String appVersion = '1.0.5';
-  static const int dbVersion = 16;
+  static const String appVersion = '1.0.6';
+  static const int dbVersion = 17;
   
   // URL where version.json is hosted
   static const String remoteVersionUrl = 'https://barber.katrix.com.ar/version.json'; 

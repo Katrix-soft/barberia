@@ -22,11 +22,21 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/services/push_notification_service.dart';
 import 'injection_container.dart' as di;
 import 'core/widgets/force_update_guard.dart';
+import 'core/database/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
   await di.init();
+  
+  // CRITICAL: Guarantee database is ready and 'nacho' is seeded BEFORE UI
+  try {
+    debugPrint('[Main] Forcing early database initialization...');
+    await di.sl<DatabaseHelper>().database;
+    debugPrint('[Main] Database ready.');
+  } catch (e) {
+    debugPrint('[Main] Early DB init failed: $e');
+  }
   
   // Initialize Push Notifications (Web)
   await PushNotificationService.initialize();

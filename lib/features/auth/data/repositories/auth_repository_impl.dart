@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dartz/dartz.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/error/failures.dart';
+import 'package:sqflite/sqflite.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
@@ -28,6 +29,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
       if (userCheck.isEmpty) {
         debugPrint('[Auth] No user found with identifier: $email');
+        // Let's check how many users are in DB right now
+        final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM users'));
+        debugPrint('[Auth] Total users in DB: $count');
         return const Left(AuthFailure('Usuario no encontrado'));
       }
 
