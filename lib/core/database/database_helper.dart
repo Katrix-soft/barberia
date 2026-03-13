@@ -25,7 +25,7 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfiWeb;
       return await openDatabase(
         'pos_barber.db',
-        version: 11,
+        version: VersionInfo.dbVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -43,7 +43,7 @@ class DatabaseHelper {
     try {
       final db = await openDatabase(
         dbPath,
-        version: 11,
+        version: VersionInfo.dbVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -62,7 +62,7 @@ class DatabaseHelper {
       // Fallback open without complex logic if primary fails
       final db = await openDatabase(
         dbPath,
-        version: 11,
+        version: VersionInfo.dbVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
