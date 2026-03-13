@@ -1,8 +1,8 @@
 {
-  "app_version": "1.0.3",
-  "db_version": 14,
+  "app_version": "1.0.4",
+  "db_version": 15,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "Actualizando sistema a v1.0.3...",
+  "message": "Corrigiendo acceso de usuario v1.0.4...",
   "update_url": "https://barber.katrix.com.ar"
 }

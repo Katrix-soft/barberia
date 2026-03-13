@@ -271,12 +271,14 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 14) {
+    if (oldVersion < 15) {
       try {
-        // Force re-creation of base users to ensure 'nacho' is definitely there
         await db.execute('DELETE FROM users');
-        debugPrint('[DB] USERS PURGED for version 14 update');
-      } catch (e) {}
+        await _ensureInitialUsers(db);
+        debugPrint('[DB] USERS RESET PERFORMED for version 15');
+      } catch (e) {
+        debugPrint('[DB] Error resetting users in v15: $e');
+      }
     }
   }
 
