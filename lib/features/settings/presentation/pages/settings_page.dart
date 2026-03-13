@@ -36,12 +36,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkBiometricSupport() async {
-    final isSupported = await _auth.isDeviceSupported();
-    final canCheck = await _auth.canCheckBiometrics;
-    final available = await _auth.getAvailableBiometrics();
-    setState(() {
-      _isBiometricSupported = isSupported || canCheck || available.isNotEmpty;
-    });
+    // Small delay to ensure plugin is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    try {
+      final isSupported = await _auth.isDeviceSupported();
+      final canCheck = await _auth.canCheckBiometrics;
+      final available = await _auth.getAvailableBiometrics();
+      
+      if (mounted) {
+        setState(() {
+          // On some Androids, canCheck is false if no biometrics are enrolled
+          // but isDeviceSupported is true.
+          _isBiometricSupported = isSupported || canCheck || available.isNotEmpty;
+        });
+        debugPrint('[Settings] Biometric Support: supported=$isSupported, canCheck=$canCheck, enrolled=${available.isNotEmpty}');
+      }
+    } catch (e) {
+      debugPrint('[Settings] Error checking biometrics: $e');
+    }
   }
 
   Future<void> _toggleBiometrics(bool value) async {
@@ -123,16 +136,24 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _buildSectionHeader('SEGURIDAD', primaryGold),
             if (_isBiometricSupported)
-              _buildSettingCard(
-                context,
-                icon: Icons.fingerprint_rounded,
-                title: 'Acceso Biométrico',
-                subtitle: 'Usa Face ID o Huella para iniciar sesión',
-                trailing: Switch(
-                  value: _useBiometrics,
-                  onChanged: _toggleBiometrics,
-                  activeColor: primaryGold,
-                ),
+              FutureBuilder<List<BiometricType>>(
+                future: _auth.getAvailableBiometrics(),
+                builder: (context, snapshot) {
+                  final hasEnrollment = snapshot.hasData && snapshot.data!.isNotEmpty;
+                  return _buildSettingCard(
+                    context,
+                    icon: Icons.fingerprint_rounded,
+                    title: 'Acceso Biométrico',
+                    subtitle: hasEnrollment 
+                        ? 'Usa Face ID o Huella para iniciar sesión'
+                        : 'Configurado en el sistema pero sin huellas/cara registradas',
+                    trailing: Switch(
+                      value: _useBiometrics,
+                      onChanged: _toggleBiometrics,
+                      activeColor: primaryGold,
+                    ),
+                  );
+                }
               )
             else
               _buildSettingCard(

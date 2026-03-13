@@ -640,8 +640,9 @@ class _PosPageState extends State<PosPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Para instalar la aplicación, usa el menú opciones de tu navegador.',
+                                  'Si estás en iPhone/iOS, usa el botón "Compartir" y luego "Agregar a pantalla de inicio".',
                                 ),
+                                duration: Duration(seconds: 5),
                               ),
                             );
                           }

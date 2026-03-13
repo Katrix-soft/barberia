@@ -59,6 +59,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
+    // Robust delay for OS services
+    await Future.delayed(const Duration(milliseconds: 1000));
+    
     try {
       final isSupported = await auth.isDeviceSupported();
       final canCheckBiometrics = await auth.canCheckBiometrics;
@@ -70,19 +73,21 @@ class _LoginScreenState extends State<LoginScreen>
       final hasSavedCreds = prefs.getString('saved_email') != null &&
           prefs.getString('saved_password') != null;
 
-      // Relaxed check: if the device basic support exists, we offer it.
-      // On some Androids, canCheckBiometrics is false until enrolled.
       final shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
 
-      debugPrint('[Auth] Biometrics check v1.1.6: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+      debugPrint('[Auth] Biometrics check v1.1.7: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
 
       if (mounted) {
         setState(() {
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Auto-trigger if enabled and we have credentials
+        // Auto-trigger logic
         if (shouldOfferBiometrics && useBiometrics && hasSavedCreds) {
+          if (availableBiometrics.isEmpty) {
+             debugPrint('[Auth] Supposed to auto-trigger but no biometrics enrolled.');
+             return;
+          }
           // Increase delay to ensure the OS UI is ready
           Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) _authenticateWithBiometrics();
