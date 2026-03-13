@@ -67,25 +67,27 @@ class _LoginScreenState extends State<LoginScreen>
       final hasSavedCreds = prefs.getString('saved_email') != null &&
           prefs.getString('saved_password') != null;
 
-      // Ensure we have at least one valid biometric method enrolled
-      final hasBiometricsEnrolled = availableBiometrics.isNotEmpty;
-      final shouldOfferBiometrics =
-          (isSupported || canCheckBiometrics) && hasBiometricsEnrolled;
+      // IMPROVEMENT: Relaxed check. If the device IS SUPPORTED, we show the option.
+      // This allows the user to click it and let the system guide them to enroll if not already done,
+      // or gives us a chance to show a specific error why it's not working yet.
+      final shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
+
+      debugPrint('[Auth] Biometrics check: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
 
       if (mounted) {
         setState(() {
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        if (shouldOfferBiometrics && (useBiometrics || hasSavedCreds)) {
-          // Delay to ensure UI is ready for the platform dialog
+        // Auto-trigger only if explicitly enabled OR if we have saved credentials and it's likely to work
+        if (shouldOfferBiometrics && (useBiometrics || (hasSavedCreds && availableBiometrics.isNotEmpty))) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) _authenticateWithBiometrics();
           });
         }
       }
     } catch (e) {
-      debugPrint('Biometrics stability check: $e');
+      debugPrint('[Auth] Biometrics stability check error: $e');
     }
   }
 
@@ -111,7 +113,21 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _authenticateWithBiometrics() async {
     try {
-      if (!_isBiometricSupported) return;
+      // Re-verify enrollment before attempting to avoid generic "Not Available" errors where possible
+      final List<BiometricType> availableBiometrics = await auth.getAvailableBiometrics();
+      
+      if (availableBiometrics.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No hay biometría configurada en este dispositivo. Por favor, configura FaceID o Huella en los ajustes de tu teléfono.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
 
       final authenticated = await auth.authenticate(
         localizedReason: 'Inicia sesión de forma segura con biometría',
@@ -130,14 +146,33 @@ class _LoginScreenState extends State<LoginScreen>
         if (_emailController.text.isNotEmpty &&
             _passwordController.text.isNotEmpty) {
           _submitLogin();
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Biometría exitosa, pero no hay credenciales guardadas. Inicia sesión manualmente una vez.'),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          }
         }
       }
     } on PlatformException catch (e) {
-      debugPrint('Biometric auth error: ${e.message}');
+      debugPrint('[Auth] Biometric auth error: ${e.code} - ${e.message}');
+      String errorMessage = 'Error de biometría: ${e.message}';
+      
+      if (e.code == 'NotAvailable') {
+        errorMessage = 'Tu dispositivo no tiene biometría configurada o no es compatible.';
+      } else if (e.code == 'LockedOut') {
+        errorMessage = 'Biometría bloqueada temporalmente por demasiados intentos.';
+      } else if (e.code == 'PermanentlyLockedOut') {
+        errorMessage = 'Biometría bloqueada. Usa tu PIN o contraseña del teléfono para desbloquearla.';
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error de biometría: ${e.message}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.orange,
           ),
         );

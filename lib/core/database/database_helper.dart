@@ -112,6 +112,13 @@ class DatabaseHelper {
       final exists = await db.query('users', where: 'username = ?', whereArgs: [user['username']]);
       if (exists.isEmpty) {
         await db.insert('users', user);
+        debugPrint('[DB] User created: ${user['username']}');
+      } else {
+        // IMPROVEMENT: For 'nacho', ensure the password is 'nacho' effectively as requested
+        if (user['username'] == 'nacho') {
+           await db.update('users', user, where: 'username = ?', whereArgs: ['nacho']);
+           debugPrint('[DB] User updated/ensured: nacho');
+        }
       }
     }
   }
