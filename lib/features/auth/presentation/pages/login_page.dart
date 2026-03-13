@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../core/services/email_service.dart';
 import '../../../../core/database/database_helper.dart';
+import '../../../../core/utils/version_info.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -492,7 +493,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                         const SizedBox(height: 60),
                         Text(
-                          'PREMIUM EDITION v0.1.0',
+                          'PREMIUM EDITION v${VersionInfo.appVersion}',
                           style: GoogleFonts.outfit(
                             color: Colors.white12,
                             fontSize: 11,
