@@ -902,37 +902,85 @@ class _LoginScreenState extends State<LoginScreen>
   void _confirmNuclearReset(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text('RESETEO NUCLEAR', style: TextStyle(color: Colors.red)),
-        content: const Text(
-          'Esto borrará TODA la base de datos local y cerrará todas las sesiones. ¿Estás seguro?',
-          style: TextStyle(color: Colors.white70),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.redAccent, width: 0.5),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            const SizedBox(width: 10),
+            Text(
+              'RESETEO DE CACHÉ',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w900,
+                color: Colors.redAccent,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Este botón soluciona los problemas de instalación y errores de la versión antigua.\n\nSe borrará la base de datos local y se recargará la aplicación para activar la v1.1.4.',
+          style: GoogleFonts.outfit(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR'),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.white38)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () async {
               Navigator.pop(context);
-              await DatabaseHelper().resetDatabase();
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.clear();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sistema reseteado. Reiniciando...')),
-                );
-                Future.delayed(const Duration(seconds: 1), () {
+              
+              // Show loading overlay
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFC5A028)),
+                ),
+              );
+
+              try {
+                await DatabaseHelper().resetDatabase();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                
+                if (mounted) {
+                  // Wait a bit to show progress
+                  await Future.delayed(const Duration(seconds: 2));
+                  Navigator.pop(context); // Remove loader
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sistema limpiado correctamente. Reiniciando...'),
+                      backgroundColor: Colors.blue,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  
+                  await Future.delayed(const Duration(seconds: 1));
                   if (kIsWeb) {
                     BrowserUtils.hardReload();
                   }
-                });
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al resetear: $e'), backgroundColor: Colors.red),
+                  );
+                }
               }
             },
-            child: const Text('BORRAR TODO', style: TextStyle(color: Colors.white)),
+            child: const Text('RESETEAR AHORA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
