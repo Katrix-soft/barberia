@@ -278,6 +278,8 @@
     };
 
     document.getElementById('install-button').addEventListener('click', async () => {
+      await window.installPWA();
+    });
 
     function dismissInstall() {
       installBanner.style.display = 'none';
