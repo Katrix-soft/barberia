@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../../../core/services/email_service.dart';
-import '../../../../core/database/database_helper.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../../core/utils/browser_utils.dart';
 import '../../../../core/utils/version_info.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
@@ -832,6 +829,8 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
   void _confirmNuclearReset(BuildContext context) {
     showDialog(
       context: context,
