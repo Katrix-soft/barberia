@@ -16,8 +16,10 @@ class BrowserUtils {
       // 2. Clear Caches
       await html.window.caches?.delete('bm-barber-v1');
       
-      // 3. Hard Reload
-      html.window.location.reload();
+      // 3. Hard Reload using a timestamp to bypass server/browser cache
+      final String currentBaseUrl = html.window.location.href.split('?')[0];
+      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      html.window.location.href = '$currentBaseUrl?v=$timestamp';
     } catch (e) {
       // Fallback to simple reload
       html.window.location.reload();
