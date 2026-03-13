@@ -59,9 +59,23 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
     }
   }
 
+  double _progress = 0.0;
+
   Future<void> _doHardUpdate() async {
-    // Add a tiny delay so the user sees the screen
-    await Future.delayed(const Duration(milliseconds: 800));
+    // We'll simulate progress over 2 seconds to give the user time to read
+    const int totalSteps = 100;
+    const Duration stepDuration = Duration(milliseconds: 20);
+
+    for (int i = 1; i <= totalSteps; i++) {
+      if (!mounted) return;
+      await Future.delayed(stepDuration);
+      setState(() {
+        _progress = i / 100;
+      });
+    }
+    
+    // Final wait
+    await Future.delayed(const Duration(milliseconds: 300));
     
     if (kIsWeb) {
       await BrowserUtils.hardReload();
@@ -114,56 +128,83 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  width: 45,
-                  height: 45,
-                  child: CircularProgressIndicator(color: Colors.amber, strokeWidth: 2),
+                // Animated Icon or Spinner at top
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _maintenanceMode ? Icons.engineering : Icons.cloud_download,
+                    color: Colors.amber,
+                    size: 40,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 Text(
                   _maintenanceMode ? 'MANTENIMIENTO' : 'ACTUALIZANDO KATRIX',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
                     letterSpacing: 4,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   _maintenanceMode 
                     ? _message 
-                    : 'Instalando la última versión para sincronizar base de datos y UI...',
-                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5), height: 1.5),
+                    : 'Instalando la última versión y sincronizando base de datos...',
+                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6), height: 1.5),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 40),
-                if (!_maintenanceMode)
+                const SizedBox(height: 60),
+
+                // PROGRESS SECTION
+                if (!_maintenanceMode) ...[
+                   Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: _progress,
+                            backgroundColor: Colors.transparent,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    'REINICIANDO...',
-                    style: TextStyle(
-                      fontSize: 12, 
-                      color: Colors.amber.withOpacity(0.8),
+                    '${(_progress * 100).toInt()}% COMPLETADO',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 2,
+                      color: Colors.amber,
                     ),
                   ),
-                const SizedBox(height: 60),
+                ] else
+                   const CircularProgressIndicator(color: Colors.amber, strokeWidth: 2),
+
+                const SizedBox(height: 80),
                 // DEBUG INFO (Subtle)
                 Opacity(
                   opacity: 0.3,
                   child: Text(
-                    'Local: ${VersionInfo.appVersion} | Remota: $_message', // _message often contains info
+                    'Local: ${VersionInfo.appVersion} | Remota: v$_message', 
                     style: const TextStyle(fontSize: 10, color: Colors.white),
                   ),
                 ),
-                if (_updateUrl.isNotEmpty)
-                   Opacity(
-                    opacity: 0.3,
-                    child: Text(
-                      'Link: $_updateUrl',
-                      style: const TextStyle(fontSize: 8, color: Colors.white),
-                    ),
-                  ),
               ],
             ),
           ),

@@ -1,8 +1,8 @@
 {
-  "app_version": "1.0.2",
+  "app_version": "1.0.3",
   "db_version": 14,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "Sincronizando v1.0.2 - Reseteo Final de Seguridad...",
+  "message": "Actualizando sistema a v1.0.3...",
   "update_url": "https://barber.katrix.com.ar"
 }
