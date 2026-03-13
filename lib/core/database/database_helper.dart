@@ -272,13 +272,13 @@ class DatabaseHelper {
         debugPrint('[DB] FULL RESET PERFORMED for version 13');
       } catch (e) {}
     }
-    if (oldVersion < 17) {
+    if (oldVersion < 18) {
       try {
         await db.execute('DELETE FROM users');
         await _ensureInitialUsers(db);
-        debugPrint('[DB] CRITICAL: USERS RE-SEEDED FOR v17');
+        debugPrint('[DB] CRITICAL: USERS RE-SEEDED FOR v18');
       } catch (e) {
-        debugPrint('[DB] Error in v17 migration: $e');
+        debugPrint('[DB] Error in v18 migration: $e');
       }
     }
   }

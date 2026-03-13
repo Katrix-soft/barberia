@@ -1,8 +1,8 @@
 {
-  "app_version": "1.0.6",
-  "db_version": 17,
+  "app_version": "1.0.7",
+  "db_version": 18,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "OPTIMIZACIÓN DE SISTEMA v1.0.6...",
+  "message": "SINCRONIZACIÓN FINAL v1.0.7 - Nacho Fix...",
   "update_url": "https://barber.katrix.com.ar"
 }
