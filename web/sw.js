@@ -146,3 +146,10 @@ self.addEventListener('notificationclick', (event) => {
     clients.openWindow(event.notification.data.url)
   );
 });
+
+// Handle messages to skip waiting (force new version)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});

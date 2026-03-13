@@ -13,6 +13,27 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     on<AddExpenseEvent>(_onAddExpense);
     on<DeleteExpenseEvent>(_onDeleteExpense);
     on<ToggleExpensePaidEvent>(_onToggleExpensePaid);
+    on<SettleAllExpensesEvent>(_onSettleAllExpenses);
+  }
+
+  Future<void> _onSettleAllExpenses(
+    SettleAllExpensesEvent event,
+    Emitter<ExpenseState> emit,
+  ) async {
+    emit(state.copyWith(status: ExpenseStatus.loading));
+    final result = await repository.settleAllPendingExpenses(event.userName);
+    result.fold(
+      (failure) => emit(
+        state.copyWith(
+          status: ExpenseStatus.error,
+          errorMessage: failure.message,
+        ),
+      ),
+      (_) {
+        emit(state.copyWith(status: ExpenseStatus.success));
+        add(LoadExpenses(userName: _lastUserName));
+      },
+    );
   }
 
   Future<void> _onLoadExpenses(

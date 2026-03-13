@@ -39,3 +39,11 @@ class ToggleExpensePaidEvent extends ExpenseEvent {
   @override
   List<Object?> get props => [expense];
 }
+
+class SettleAllExpensesEvent extends ExpenseEvent {
+  final String userName;
+  const SettleAllExpensesEvent(this.userName);
+
+  @override
+  List<Object?> get props => [userName];
+}

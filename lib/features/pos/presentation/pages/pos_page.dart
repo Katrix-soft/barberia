@@ -20,9 +20,12 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../reports/presentation/pages/reports_page.dart';
 import '../../../booking/presentation/pages/booking_page.dart';
 import '../../../expenses/presentation/pages/expenses_page.dart';
+import '../../../expenses/presentation/bloc/expense_bloc.dart';
+import '../../../expenses/presentation/bloc/expense_event.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'package:posbarber/core/database/database_helper.dart';
 import 'package:posbarber/core/utils/pwa_installer.dart';
+import 'package:posbarber/core/utils/version_info.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -684,6 +687,31 @@ class _PosPageState extends State<PosPage> {
                       },
                     ),
                 ],
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Katrix Barber v${VersionInfo.appVersion}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.withOpacity(0.6),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'DB Version: ${VersionInfo.dbVersion}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.withOpacity(0.4),
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -951,19 +979,53 @@ class _PosPageState extends State<PosPage> {
                       ? Border.all(color: Colors.green.withOpacity(0.5))
                       : null,
                 ),
-                child: Text(
-                  remaining <= 0 && totalGoal > 0
-                      ? (remaining < 0
-                          ? 'SUPERADO POR ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining.abs())} ✨'
-                          : 'META CUMPLIDA! ✨')
-                      : 'FALTAN ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining)}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: (remaining <= 0 && totalGoal > 0)
-                        ? Colors.green
-                        : const Color(0xFFC5A028),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      remaining <= 0 && totalGoal > 0
+                          ? (remaining < 0
+                              ? 'SUPERADO POR ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining.abs())} ✨'
+                              : 'META CUMPLIDA! ✨')
+                          : 'FALTAN ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(remaining)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: (remaining <= 0 && totalGoal > 0)
+                            ? Colors.green
+                            : const Color(0xFFC5A028),
+                      ),
+                    ),
+                    if (totalGoal > 0) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showSettleConfirmation(context, authState is Authenticated ? authState.user.name : 'admin'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.withOpacity(0.3), width: 0.5),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.cleaning_services, size: 10, color: Colors.red),
+                              SizedBox(width: 4),
+                              Text(
+                                'BORRAR (YA PAGÓ)',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -2021,6 +2083,39 @@ class _PosPageState extends State<PosPage> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showSettleConfirmation(BuildContext context, String userName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.cleaning_services, color: Colors.red),
+            SizedBox(width: 8),
+            Text('BORRAR DEUDA'),
+          ],
+        ),
+        content: const Text(
+          '¿Estás seguro de que el barbero ya pagó todo su consumo personal? '
+          '\n\nEsta acción marcará todos los gastos pendientes como PAGADOS y el contador volverá a cero.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCELAR'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.read<ExpenseBloc>().add(SettleAllExpensesEvent(userName));
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('SÍ, BORRAR TODO'),
+          ),
+        ],
+      ),
     );
   }
 }

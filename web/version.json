@@ -1,0 +1,8 @@
+{
+  "app_version": "1.0.0",
+  "db_version": 12,
+  "force_update": true,
+  "maintenance_mode": false,
+  "message": "Test final: Sincronizando base de datos v12...",
+  "update_url": "https://barber.katrix.com.ar"
+}

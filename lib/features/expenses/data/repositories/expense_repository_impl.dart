@@ -70,4 +70,20 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
       return Left(DatabaseFailure('Error al eliminar gasto: $e'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> settleAllPendingExpenses(String userName) async {
+    try {
+      final db = await dbHelper.database;
+      await db.update(
+        'expenses',
+        {'is_paid': 1},
+        where: 'user_name = ? AND is_paid = 0',
+        whereArgs: [userName],
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(DatabaseFailure('Error al saldar gastos: $e'));
+    }
+  }
 }
