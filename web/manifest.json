@@ -1,11 +1,13 @@
 {
   "name": "BM BARBER",
   "short_name": "BM BARBER",
-  "start_url": "/",
+  "start_url": ".",
+  "scope": "/",
+  "id": "pos-barber-luxury",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#000000",
+  "theme_color": "#C5A028",
   "description": "Sistema POS para BM BARBER",
   "icons": [
     {

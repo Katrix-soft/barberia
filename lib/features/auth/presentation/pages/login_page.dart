@@ -133,10 +133,10 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       final authenticated = await auth.authenticate(
-        localizedReason: 'Inicia sesión de forma segura con biometría',
+        localizedReason: 'Inicia sesión de forma segura con Face ID o Huella',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: true,
+          biometricOnly: false, // Allow PIN as fallback if biometrics fail
           useErrorDialogs: true,
         ),
       );
