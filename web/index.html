@@ -232,6 +232,7 @@
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: "$serviceWorkerVersion",
+          timeout: 4000,
         },
         onEntrypointLoaded: function (engineInitializer) {
           engineInitializer.initializeEngine().then(function (appRunner) {
@@ -239,6 +240,15 @@
           });
         }
       });
+
+      // Explicit Service Worker Registration for PWA reliability
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(function(registration) {
+          console.log('SW Registered with scope:', registration.scope);
+        }).catch(function(error) {
+          console.error('SW Registration failed:', error);
+        });
+      }
     });
 
     // Android Install Prompt

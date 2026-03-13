@@ -1,24 +1,26 @@
 {
   "name": "BM BARBER",
   "short_name": "BM BARBER",
-  "start_url": ".",
+  "start_url": "/?source=pwa",
   "scope": "/",
-  "id": "pos-barber-luxury",
+  "id": "katrix-barber-luxury-pos",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#C5A028",
-  "description": "Sistema POS para BM BARBER",
+  "description": "Sistema POS Profesional para BM BARBER",
   "icons": [
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-maskable-192.png",
