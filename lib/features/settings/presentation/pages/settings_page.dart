@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:js' as js;
+import 'dart:js_util' as js_util;
 import '../../../../core/utils/version_info.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
@@ -46,10 +47,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (kIsWeb) {
         try {
           final dynamic result = js.context.callMethod('checkWebBiometrics');
-          if (result is Future) {
-            isSupported = (await result) == true;
-          } else {
-            isSupported = result == true;
+          if (result != null) {
+            isSupported = await js_util.promiseToFuture(result);
           }
         } catch (e) {
           debugPrint('[Settings] Web Biometric check failed: $e');
@@ -57,8 +56,8 @@ class _SettingsPageState extends State<SettingsPage> {
       } else {
         final deviceSupported = await _auth.isDeviceSupported();
         final canCheck = await _auth.canCheckBiometrics;
-        final available = await _auth.getAvailableBiometrics();
-        isSupported = deviceSupported || canCheck || available.isNotEmpty;
+        // Even if no biometrics are enrolled, we show the option if hardware is supported
+        isSupported = deviceSupported || canCheck;
       }
       
       if (mounted) {
@@ -81,7 +80,8 @@ class _SettingsPageState extends State<SettingsPage> {
               'Confirma tu identidad para activar el acceso biométrico',
           options: const AuthenticationOptions(
             stickyAuth: true,
-            biometricOnly: true,
+            biometricOnly: false, // Allow PIN fallback for activation if biometrics fail
+            useErrorDialogs: true,
           ),
         );
         if (authenticated) {

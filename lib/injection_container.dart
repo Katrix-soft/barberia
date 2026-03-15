@@ -30,6 +30,8 @@ import 'features/expenses/presentation/bloc/expense_bloc.dart';
 import 'features/expenses/domain/repositories/expense_repository.dart';
 import 'features/expenses/data/repositories/expense_repository_impl.dart';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -40,7 +42,11 @@ Future<void> init() async {
   sl.registerFactory(() => UserBloc(repository: sl()));
   sl.registerLazySingleton(() => LoginUseCase(sl()));
   sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(databaseHelper: sl(), sharedPreferences: sl()),
+    () => AuthRepositoryImpl(
+      databaseHelper: sl(),
+      sharedPreferences: sl(),
+      secureStorage: sl(),
+    ),
   );
 
   // POS
@@ -83,4 +89,5 @@ Future<void> init() async {
   //! External
   final sharedPrefs = await SharedPreferences.getInstance();
   sl.registerLazySingleton(() => sharedPrefs);
+  sl.registerLazySingleton(() => const FlutterSecureStorage());
 }

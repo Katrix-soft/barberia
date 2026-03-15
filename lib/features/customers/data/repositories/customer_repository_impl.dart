@@ -4,6 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/repositories/customer_repository.dart';
 import '../models/customer_model.dart';
+import '../../../../core/utils/security_sanitizer.dart';
 
 class CustomerRepositoryImpl implements CustomerRepository {
   final DatabaseHelper databaseHelper;
@@ -30,11 +31,11 @@ class CustomerRepositoryImpl implements CustomerRepository {
       final db = await databaseHelper.database;
       final customerModel = CustomerModel(
         id: customer.id,
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email,
+        name: SecuritySanitizer.sanitize(customer.name),
+        phone: SecuritySanitizer.sanitizeNumeric(customer.phone ?? ''),
+        email: SecuritySanitizer.sanitizeIdentifier(customer.email ?? ''),
         points: customer.points,
-        notes: customer.notes,
+        notes: SecuritySanitizer.sanitize(customer.notes ?? ''),
       );
 
       if (customer.id == null) {

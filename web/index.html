@@ -8,6 +8,21 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="BM BARBER - Sistema POS profesional.">
 
+  <!-- Content Security Policy (CSP) - Radical Hardening -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https:;
+    connect-src 'self' https:;
+  ">
+  
+  <!-- Anti-Clickjacking & Security Headers -->
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
   <!-- PWA Meta Tags -->
   <meta name="theme-color" content="#000000">
   <meta name="mobile-web-app-capable" content="yes">
@@ -278,10 +293,12 @@
       try {
         if (window.PublicKeyCredential && 
             PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-          return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          console.log('[PWA] Biometrics available:', available);
+          return available;
         }
       } catch (e) {
-        console.error('Biometric check failed:', e);
+        console.error('[PWA] Biometric check failed:', e);
       }
       return false;
     };

@@ -4,6 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../models/product_model.dart';
+import '../../../../core/utils/security_sanitizer.dart';
 
 class InventoryRepositoryImpl implements InventoryRepository {
   final DatabaseHelper databaseHelper;
@@ -30,12 +31,12 @@ class InventoryRepositoryImpl implements InventoryRepository {
       final db = await databaseHelper.database;
       final productModel = ProductModel(
         id: product.id,
-        name: product.name,
-        barcode: product.barcode,
+        name: SecuritySanitizer.sanitize(product.name),
+        barcode: SecuritySanitizer.sanitize(product.barcode ?? ''),
         price: product.price,
         stock: product.stock,
         stockMin: product.stockMin,
-        category: product.category,
+        category: SecuritySanitizer.sanitize(product.category ?? ''),
         isService: product.isService,
         imageUrl: product.imageUrl,
       );

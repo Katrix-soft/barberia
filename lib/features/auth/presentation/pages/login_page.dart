@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:js' as js;
+import 'dart:js_util' as js_util;
 import '../../../../core/services/email_service.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/utils/browser_utils.dart';
@@ -65,22 +66,19 @@ class _LoginScreenState extends State<LoginScreen>
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      final useBiometrics = prefs.getBool('use_biometrics') ?? false;
-      final hasSavedCreds = prefs.getString('saved_email') != null &&
-          prefs.getString('saved_password') != null;
 
       bool shouldOfferBiometrics = false;
 
       if (kIsWeb) {
-        // Direct JS call for PWA stability
+        // Direct JS call for PWA stability with proper promise awaiting
         try {
           final dynamic result = js.context.callMethod('checkWebBiometrics');
-          if (result is Future) {
-            shouldOfferBiometrics = (await result) == true;
-          } else {
-            shouldOfferBiometrics = result == true;
+          if (result != null) {
+            // Correctly await JS Promise in Dart
+            final bool isWebAuthnAvailable = await js_util.promiseToFuture(result);
+            shouldOfferBiometrics = isWebAuthnAvailable;
           }
-           debugPrint('[Auth] Web Biometrics check v1.1.9: supported=$shouldOfferBiometrics');
+          debugPrint('[Auth] Web Biometrics check v${VersionInfo.appVersion}: supported=$shouldOfferBiometrics');
         } catch (e) {
           debugPrint('[Auth] Web Biometrics check failed: $e');
         }
@@ -89,8 +87,12 @@ class _LoginScreenState extends State<LoginScreen>
         final canCheckBiometrics = await auth.canCheckBiometrics;
         final List<BiometricType> availableBiometrics =
             await auth.getAvailableBiometrics();
-        shouldOfferBiometrics = isSupported || canCheckBiometrics || availableBiometrics.isNotEmpty;
-        debugPrint('[Auth] Native Biometrics check v1.1.9: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+        
+        // Comprehensive check: hardware support AND capability
+        shouldOfferBiometrics = isSupported || canCheckBiometrics;
+        
+        debugPrint('[Auth] Native Biometrics check v${VersionInfo.appVersion}: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
+        debugPrint('[Auth] Enrolled types: $availableBiometrics');
       }
 
       if (mounted) {
@@ -98,25 +100,22 @@ class _LoginScreenState extends State<LoginScreen>
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Auto-trigger logic
-        if (shouldOfferBiometrics && useBiometrics && hasSavedCreds) {
-          // availableBiometrics check only on mobile
-          bool hasEnrollment = true;
-          if (!kIsWeb) {
-            // Re-fetch to ensure we have the list
-            final enrolled = await auth.getAvailableBiometrics();
-            if (enrolled.isEmpty) hasEnrollment = false;
-          }
-
-          if (!hasEnrollment) {
-             debugPrint('[Auth] Supposed to auto-trigger but no biometrics enrolled.');
-             return;
-          }
-          // Increase delay to ensure the OS UI is ready
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) _authenticateWithBiometrics();
-          });
+        // Enrollment check: Be more permissive on Web/iPhone
+        bool hasEnrollment = true;
+        if (!kIsWeb) {
+          final enrolled = await auth.getAvailableBiometrics();
+          if (enrolled.isEmpty) hasEnrollment = false;
         }
+
+        if (!hasEnrollment) {
+          debugPrint('[Auth] Supposed to auto-trigger but no biometrics enrolled.');
+          // On some devices, show button but don't auto-trigger
+          return;
+        }
+
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) _authenticateWithBiometrics();
+        });
       }
     } catch (e) {
       debugPrint('[Auth] Biometrics stability check error: $e');
@@ -148,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen>
       // Re-verify enrollment before attempting to avoid generic "Not Available" errors where possible
       final List<BiometricType> availableBiometrics = await auth.getAvailableBiometrics();
       
-      if (availableBiometrics.isEmpty) {
+      if (availableBiometrics.isEmpty && !kIsWeb) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -167,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
           stickyAuth: true,
           biometricOnly: false, // Allow PIN as fallback if biometrics fail
           useErrorDialogs: true,
+          sensitiveTransaction: true,
         ),
       );
 
