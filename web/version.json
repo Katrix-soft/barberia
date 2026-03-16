@@ -1,8 +1,8 @@
 {
-  "app_version": "1.2.5",
+  "app_version": "1.2.6",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "SECURITY & DEPLOYMENT FIX v1.2.5",
+  "message": "PWA STABILITY & BIOMETRICS FIX v1.2.6",
   "update_url": "https://barber.katrix.com.ar"
 }
