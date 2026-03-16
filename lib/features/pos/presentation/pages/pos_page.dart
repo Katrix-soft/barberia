@@ -31,6 +31,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../customers/domain/entities/customer.dart';
+import '../../../help/presentation/pages/help_page.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});

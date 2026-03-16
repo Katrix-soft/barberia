@@ -27,10 +27,9 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
     if (savedTheme != null) {
       return ThemeMode.values.firstWhere(
         (e) => e.name == savedTheme,
-        orElse: () => ThemeMode.light,
+        orElse: () => ThemeMode.dark,
       );
     }
-    return ThemeMode
-        .light; // Por defecto modo claro en vez de system para evitar inconsistencias
+    return ThemeMode.dark; // Por defecto modo oscuro predeterminado
   }
 }
