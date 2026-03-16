@@ -581,6 +581,18 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                     },
                   ),
+                ListTile(
+                  leading: const Icon(Icons.help_outline_rounded, color: Color(0xFFC5A028)),
+                  title: const Text('Ayuda y Tutorial'),
+                  subtitle: const Text('¿Cómo usar el sistema?'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HelpPage()),
+                    );
+                  },
+                ),
                 if (isAdmin || isHeadBarber)
                   ListTile(
                     leading: const Icon(Icons.badge),
