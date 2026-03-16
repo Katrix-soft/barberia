@@ -8,14 +8,15 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="BM BARBER - Sistema POS profesional.">
 
-  <!-- Content Security Policy (CSP) - Radical Hardening -->
+  <!-- Content Security Policy (CSP) - Hardened but Permissive for Flutter -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.google.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.gstatic.com https://www.google.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: https:;
-    connect-src 'self' https:;
+    connect-src 'self' https: data: blob:;
+    worker-src 'self' blob:;
   ">
   
   <!-- Anti-Clickjacking & Security Headers -->
@@ -247,9 +248,7 @@
 
       // Initialize Flutter
       _flutter.loader.loadEntrypoint({
-        serviceWorker: {
-          serviceWorkerVersion: null, // Force check
-        },
+        serviceWorker: null,
         onEntrypointLoaded: function (engineInitializer) {
           engineInitializer.initializeEngine().then(function (appRunner) {
             appRunner.runApp();
