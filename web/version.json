@@ -1,8 +1,8 @@
 {
-  "app_version": "1.2.4",
+  "app_version": "1.2.5",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "SECURITY HARDENING & BIOMETRICS v1.2.4",
+  "message": "SECURITY & DEPLOYMENT FIX v1.2.5",
   "update_url": "https://barber.katrix.com.ar"
 }
