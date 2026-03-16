@@ -65,7 +65,6 @@ class _LoginScreenState extends State<LoginScreen>
     await Future.delayed(const Duration(milliseconds: 1000));
     
     try {
-      final prefs = await SharedPreferences.getInstance();
 
       bool shouldOfferBiometrics = false;
 

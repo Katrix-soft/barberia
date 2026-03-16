@@ -36,7 +36,7 @@ class InventoryRepositoryImpl implements InventoryRepository {
         price: product.price,
         stock: product.stock,
         stockMin: product.stockMin,
-        category: SecuritySanitizer.sanitize(product.category ?? ''),
+        category: SecuritySanitizer.sanitize(product.category),
         isService: product.isService,
         imageUrl: product.imageUrl,
       );

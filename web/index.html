@@ -247,7 +247,9 @@
 
       // Initialize Flutter
       _flutter.loader.loadEntrypoint({
-        serviceWorker: null,
+        serviceWorker: {
+          serviceWorkerVersion: null, // Force check
+        },
         onEntrypointLoaded: function (engineInitializer) {
           engineInitializer.initializeEngine().then(function (appRunner) {
             appRunner.runApp();
@@ -255,12 +257,36 @@
         }
       });
 
-      // Explicit Service Worker Registration for PWA reliability
+      // Explicit Service Worker Registration with Aggressive Update Logic
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(function(registration) {
-          console.log('SW Registered with scope:', registration.scope);
+          console.log('[SW] Registered with scope:', registration.scope);
+          
+          // Check for updates every time the app loads
+          registration.update();
+
+          // If a new SW is found and waiting, force it to activate
+          registration.onupdatefound = () => {
+            const installingWorker = registration.installing;
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] New version found! Forcing reload...');
+                installingWorker.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              }
+            };
+          };
         }).catch(function(error) {
-          console.error('SW Registration failed:', error);
+          console.error('[SW] Registration failed:', error);
+        });
+
+        // Listen for the controlling SW changing (SKIP_WAITING triggered)
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            window.location.reload();
+            refreshing = true;
+          }
         });
       }
     });
