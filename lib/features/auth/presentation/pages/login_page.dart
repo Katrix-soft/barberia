@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' show window;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'dart:js' as js;
 import 'dart:js_util' as js_util;
+import '../../../../core/utils/pwa_installer.dart';
 import '../../../../core/services/email_service.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/utils/browser_utils.dart';
@@ -527,6 +529,31 @@ class _LoginScreenState extends State<LoginScreen>
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // Manual Install Button for Web
+                        if (kIsWeb && !window.matchMedia('(display-mode: standalone)').matches) ...[
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final success = await PwaInstaller.installPWA();
+                              if (success && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Iniciando instalación...')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.download_rounded, color: Color(0xFFC5A028), size: 18),
+                            label: Text(
+                              'INSTALAR APLICACIÓN',
+                              style: GoogleFonts.outfit(
+                                color: const Color(0xFFC5A028),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                letterSpacing: 1,
                               ),
                             ),
                           ),

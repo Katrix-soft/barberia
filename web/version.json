@@ -1,8 +1,8 @@
 {
-  "app_version": "1.2.7",
+  "app_version": "1.2.8",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "EMERGENCY LOGIN & DB STABILITY FIX v1.2.7",
+  "message": "FORCED PWA INSTALLATION v1.2.8",
   "update_url": "https://barber.katrix.com.ar"
 }
