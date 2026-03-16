@@ -18,4 +18,21 @@ class PwaInstaller {
       return false;
     }
   }
+
+  static Future<bool> authenticateWebBiometrics() async {
+    try {
+      if (!js.context.hasProperty('authenticateWebBiometrics')) {
+        return false;
+      }
+      final dynamic result = js.context.callMethod('authenticateWebBiometrics');
+      if (result != null && js_util.hasProperty(result, 'then')) {
+        final future = js_util.promiseToFuture(result);
+        final finalResult = await future;
+        return finalResult == true;
+      }
+      return result == true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

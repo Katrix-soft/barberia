@@ -167,24 +167,33 @@
       transform: scale(0.98);
     }
 
+    .ios-modal-content {
+      padding: 10px 0;
+    }
+
     .ios-step {
       display: flex;
       align-items: center;
-      margin: 12px 0;
-      font-size: 15px;
+      margin: 16px 0;
+      font-size: 16px;
+      line-height: 1.4;
       color: rgba(255, 255, 255, 0.9);
     }
 
     .ios-icon {
-      width: 24px;
-      height: 24px;
-      margin: 0 8px;
+      width: 28px;
+      height: 28px;
+      margin: 0 10px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px;
+      border-radius: 6px;
     }
 
     .close-pwa {
       position: absolute;
       top: 18px;
       right: 18px;
+      padding: 10px;
       color: rgba(255, 255, 255, 0.5);
       cursor: pointer;
       font-size: 20px;
@@ -219,9 +228,11 @@
       <img src="logobarber.jpg" class="pwa-icon">
       <div class="pwa-title">Instalar BM BARBER</div>
     </div>
-    <div class="ios-step">1. Toca el botón compartir <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/IOS_Share_Icon.svg/1200px-IOS_Share_Icon.svg.png" class="ios-icon" style="filter: invert(1);"></div>
-    <div class="ios-step">2. Selecciona "Agregar a pantalla de inicio"</div>
-    <div class="ios-step">3. Presiona "Agregar"</div>
+    <div class="ios-modal-content">
+      <div class="ios-step">1. Toca el botón <b>Compartir</b> <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/IOS_Share_Icon.svg/1200px-IOS_Share_Icon.svg.png" class="ios-icon" style="filter: invert(1);"> abajo.</div>
+      <div class="ios-step">2. Baja y selecciona <br><b>"Agregar a pantalla de inicio"</b> <img src="icons/Icon-192.png" class="ios-icon"></div>
+      <div class="ios-step">3. Presiona <b>"Agregar"</b> arriba a la derecha.</div>
+    </div>
   </div>
 
   <script src="flutter_bootstrap.js" async></script>
@@ -273,12 +284,45 @@
       return false;
     };
 
+    window.authenticateWebBiometrics = async () => {
+      try {
+        if (typeof window.PublicKeyCredential === 'undefined') return false;
+        
+        // Simple WebAuthn Local Challenge (User Presence Verification)
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+        
+        const publicKeyCredentialCreationOptions = {
+          challenge: challenge,
+          rp: { name: "BM BARBER", id: window.location.hostname },
+          user: {
+            id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)),
+            name: "nacho@barberia.com",
+            displayName: "Nacho"
+          },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: { authenticatorAttachment: "platform" }, // Forces Fingerprint/FaceID
+          timeout: 60000
+        };
+
+        const credential = await navigator.credentials.create({
+          publicKey: publicKeyCredentialCreationOptions
+        });
+        
+        console.log('[PWA] Web Biometrics Auth success');
+        return !!credential;
+      } catch (e) {
+        console.warn('[PWA] Web Biometrics Auth failed or cancelled:', e);
+        return false;
+      }
+    };
+
     window.checkWebBiometrics = async () => {
       try {
         if (typeof window.PublicKeyCredential !== 'undefined' && 
             typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
           const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          console.log('[PWA] Biometrics check internal:', available);
+          console.log('[PWA] Biometrics support check:', available);
           return !!available;
         }
       } catch (e) {

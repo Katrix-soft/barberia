@@ -153,10 +153,20 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _authenticateWithBiometrics() async {
     try {
+      if (kIsWeb) {
+        final authenticated = await PwaInstaller.authenticateWebBiometrics();
+        if (authenticated) {
+          _onBiometricAuthSuccess();
+        } else {
+          debugPrint('[Auth] Web Biometrics Auth failed or cancelled');
+        }
+        return;
+      }
+
       // Re-verify enrollment before attempting to avoid generic "Not Available" errors where possible
       final List<BiometricType> availableBiometrics = await auth.getAvailableBiometrics();
       
-      if (availableBiometrics.isEmpty && !kIsWeb) {
+      if (availableBiometrics.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -180,23 +190,7 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       if (authenticated) {
-        if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-          await _loadSavedCredentials();
-        }
-
-        if (_emailController.text.isNotEmpty &&
-            _passwordController.text.isNotEmpty) {
-          _submitLogin();
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Biometría exitosa, pero no hay credenciales guardadas. Inicia sesión manualmente una vez.'),
-                backgroundColor: Colors.blue,
-              ),
-            );
-          }
-        }
+        _onBiometricAuthSuccess();
       }
     } on PlatformException catch (e) {
       debugPrint('[Auth] Biometric auth error: ${e.code} - ${e.message}');
@@ -215,6 +209,27 @@ class _LoginScreenState extends State<LoginScreen>
           SnackBar(
             content: Text(errorMessage),
             backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _onBiometricAuthSuccess() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      await _loadSavedCredentials();
+    }
+
+    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+      _submitLogin();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Biometría exitosa, pero no hay credenciales guardadas. Inicia sesión manualmente una vez.',
+            ),
+            backgroundColor: Colors.blue,
           ),
         );
       }
