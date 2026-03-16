@@ -19,8 +19,6 @@
     worker-src 'self' blob:;
   ">
   
-  <!-- Anti-Clickjacking & Security Headers -->
-  <meta http-equiv="X-Frame-Options" content="DENY">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="referrer" content="strict-origin-when-cross-origin">
 
@@ -226,27 +224,12 @@
     <div class="ios-step">3. Presiona "Agregar"</div>
   </div>
 
+  <script src="flutter_bootstrap.js" async></script>
   <script>
-    // Manual Service Worker Registration Fallback (Robustness for Android PWA)
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('flutter_service_worker.js?v=1236453079', {
-          scope: './'
-        }).then(function(reg) {
-          console.log('[PWA] Manual SW registered:', reg.scope);
-        }).catch(function(err) {
-          console.warn('[PWA] Manual SW registration failed:', err);
-        });
-      });
-    }
-
     // Diagnostic Logs
     console.log('[PWA] Standalone mode:', window.matchMedia('(display-mode: standalone)').matches);
     console.log('[PWA] Platform:', navigator.platform);
-  </script>
 
-  <script src="flutter_bootstrap.js" async></script>
-  <script>
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
     const iosModal = document.getElementById('ios-modal');

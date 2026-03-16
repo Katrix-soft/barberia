@@ -61,21 +61,25 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       // -----------------------
 
+      debugPrint('[Auth] Attempting login for identifier: $sanitizedEmail');
       final List<Map<String, dynamic>> userCheck = await db.query(
         'users',
         where: 'LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)',
-        whereArgs: [email, email],
+        whereArgs: [sanitizedEmail, sanitizedEmail],
       );
 
       if (userCheck.isEmpty) {
-        debugPrint('[Auth] No user found with identifier: $email');
+        debugPrint('[Auth] No user found with identifier: $sanitizedEmail');
         return const Left(AuthFailure('Usuario no encontrado'));
       }
 
       final userData = userCheck.first;
       final storedPassword = userData['password'] as String;
+      
+      final isPasswordValid = SecurityUtils.verifyPassword(sanitizedPassword, storedPassword);
+      debugPrint('[Auth] Password verification result for ${userData['username']}: $isPasswordValid');
 
-      if (SecurityUtils.verifyPassword(sanitizedPassword, storedPassword)) {
+      if (isPasswordValid) {
         final userModel = UserModel.fromMap(userData);
         
         // 3. Reset Brute-Force Counter on success

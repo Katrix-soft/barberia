@@ -117,9 +117,12 @@ class _LoginScreenState extends State<LoginScreen>
           return;
         }
 
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) _authenticateWithBiometrics();
-        });
+        // Only auto-trigger if explicitly supported to avoid 'Uncaught Error'
+        if (_isBiometricSupported) {
+          Future.delayed(const Duration(milliseconds: 1500), () {
+            if (mounted) _authenticateWithBiometrics();
+          });
+        }
       }
     } catch (e) {
       debugPrint('[Auth] Biometrics stability check error: $e');
