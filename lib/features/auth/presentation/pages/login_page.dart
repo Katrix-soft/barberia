@@ -71,11 +71,16 @@ class _LoginScreenState extends State<LoginScreen>
       if (kIsWeb) {
         // Direct JS call for PWA stability with proper promise awaiting
         try {
-          final dynamic result = js.context.callMethod('checkWebBiometrics');
-          if (result != null) {
-            // Correctly await JS Promise in Dart
-            final bool isWebAuthnAvailable = await js_util.promiseToFuture(result);
-            shouldOfferBiometrics = isWebAuthnAvailable;
+          if (js.context.hasProperty('checkWebBiometrics')) {
+            final dynamic result = js.context.callMethod('checkWebBiometrics');
+            if (result != null) {
+              // Robustly handle both Promise and direct bool
+              if (js_util.hasProperty(result, 'then')) {
+                shouldOfferBiometrics = await js_util.promiseToFuture(result);
+              } else {
+                shouldOfferBiometrics = result == true;
+              }
+            }
           }
           debugPrint('[Auth] Web Biometrics check v${VersionInfo.appVersion}: supported=$shouldOfferBiometrics');
         } catch (e) {
