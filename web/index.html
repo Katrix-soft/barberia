@@ -226,7 +226,7 @@
     <div class="ios-step">3. Presiona "Agregar"</div>
   </div>
 
-  <script src="flutter.js" defer></script>
+  <script src="flutter_bootstrap.js" async></script>
   <script>
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
@@ -239,54 +239,10 @@
 
       if (!isStandalone) {
         if (isIOS) {
-          // Show iOS modal after 4 seconds if not seen before
           if (!localStorage.getItem('iosPwaDismissed')) {
             setTimeout(() => { iosModal.style.display = 'block'; }, 4000);
           }
         }
-      }
-
-      // Initialize Flutter
-      _flutter.loader.loadEntrypoint({
-        serviceWorker: null,
-        onEntrypointLoaded: function (engineInitializer) {
-          engineInitializer.initializeEngine().then(function (appRunner) {
-            appRunner.runApp();
-          });
-        }
-      });
-
-      // Explicit Service Worker Registration with Aggressive Update Logic
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(function(registration) {
-          console.log('[SW] Registered with scope:', registration.scope);
-          
-          // Check for updates every time the app loads
-          registration.update();
-
-          // If a new SW is found and waiting, force it to activate
-          registration.onupdatefound = () => {
-            const installingWorker = registration.installing;
-            installingWorker.onstatechange = () => {
-              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] New version found! Forcing reload...');
-                installingWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
-            };
-          };
-        }).catch(function(error) {
-          console.error('[SW] Registration failed:', error);
-        });
-
-        // Listen for the controlling SW changing (SKIP_WAITING triggered)
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!refreshing) {
-            window.location.reload();
-            refreshing = true;
-          }
-        });
       }
     });
 
