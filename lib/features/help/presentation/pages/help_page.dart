@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
 
 class HelpPage extends StatefulWidget {
   const HelpPage({super.key});
@@ -11,58 +15,114 @@ class HelpPage extends StatefulWidget {
 class _HelpPageState extends State<HelpPage> {
   int _selectedSection = 0;
 
-  final List<Map<String, dynamic>> _sections = [
-    {
-      'title': 'Instalación PWA',
-      'icon': Icons.install_mobile_rounded,
-      'content': [
+  List<Map<String, dynamic>> _getSections(UserRole role) {
+    final bool isStaff = role == UserRole.employee;
+
+    if (isStaff) {
+      return [
         {
-          'subtitle': '📱 En Android (Chrome)',
-          'text': '1. Abre la web en Chrome.\n2. Presiona el botón "INSTALAR APLICACIÓN" en el login.\n3. Confirma la instalación y aparecerá el icono en tu escritorio.',
+          'title': 'Mi Comisión',
+          'icon': Icons.account_balance_wallet_rounded,
+          'content': [
+            {
+              'subtitle': '💰 Seguimiento Diario',
+              'text': 'Puedes ver tu comisión del día abriendo el menú lateral (Drawer). Allí verás:\n• Comisión Bruta (50% de servicios).\n• Descuentos (Adelantos o gastos a cuenta).\n• Total Neto a cobrar al final de la jornada.',
+            },
+            {
+              'subtitle': '📋 Asignación de Servicios',
+              'text': 'Al realizar una venta, asegúrate de que el cajero seleccione tu nombre en la lista de barberos. Solo así se sumará la comisión a tu perfil.',
+            },
+          ],
         },
         {
-          'subtitle': '🍎 En iPhone (Safari)',
-          'text': '1. Abre la web en Safari.\n2. Toca el botón "Compartir" (el cuadrado con la flecha).\n3. Selecciona "Agregar a pantalla de inicio".\n4. Presiona "Agregar" arriba a la derecha.',
+          'title': 'Ventas y POS',
+          'icon': Icons.point_of_sale_rounded,
+          'content': [
+            {
+              'subtitle': '🛒 Uso de la Terminal',
+              'text': '1. Selecciona los productos tocándolos en la pantalla.\n2. Usa el icono de QR arriba a la derecha para escanear productos con código de barras.\n3. Presiona "COBRAR" para finalizar.',
+            },
+          ],
         },
-      ],
-    },
-    {
-      'title': 'Acceso Biométrico',
-      'icon': Icons.fingerprint_rounded,
-      'content': [
+        _pwaSection,
+        _biometricSection,
+      ];
+    } else {
+      // Admin / Head Barber
+      return [
         {
-          'subtitle': '🔐 Configuración Inicial',
-          'text': '1. Inicia sesión con tu usuario y contraseña.\n2. El sistema te preguntará si quieres activar el acceso rápido.\n3. Presiona "Sí, habilitar" y pon tu huella o FaceID.',
-        },
-        {
-          'subtitle': '💻 Uso en la Web',
-          'text': 'En el navegador, al tocar el botón de huella, aparecerá una ventana emergente de seguridad. Usa el lector de tu dispositivo para validar tu identidad sin escribir la contraseña.',
-        },
-      ],
-    },
-    {
-      'title': 'Uso Diario (POS)',
-      'icon': Icons.point_of_sale_rounded,
-      'content': [
-        {
-          'subtitle': '🛒 Realizar una Venta',
-          'text': '1. Selecciona los productos tocándolos.\n2. En el resumen de compra, presiona "COBRAR".\n3. Selecciona el barbero que realiza el servicio para que su comisión se asigne correctamente.',
+          'title': 'Gestión de Equipo',
+          'icon': Icons.badge_rounded,
+          'content': [
+            {
+              'subtitle': '👥 Administrar Personal',
+              'text': 'En la sección "Personal", puedes:\n• Agregar nuevos barberos.\n• Editar perfiles y cambiar contraseñas.\n• Ver el desempeño individual del equipo.',
+            },
+          ],
         },
         {
-          'subtitle': '📊 Cierre de Caja',
-          'text': 'Admin y Barbero Jefe pueden ver el cierre del día en la sección de "Reportes". Allí verás el total de ventas, efectivo y comisiones generadas.',
+          'title': 'Inventario',
+          'icon': Icons.inventory_2_rounded,
+          'content': [
+            {
+              'subtitle': '📦 Control de Stock',
+              'text': 'Desde la sección "Inventario" puedes cargar nuevos productos, actualizar precios y controlar las existencias críticas.',
+            },
+          ],
         },
-      ],
-    },
-  ];
+        {
+          'title': 'Finanzas',
+          'icon': Icons.bar_chart_rounded,
+          'content': [
+            {
+              'subtitle': '📊 Reportes y Caja',
+              'text': 'En "Reportes" puedes ver el cierre del día, filtrado por fecha. Incluye total de ventas, métodos de pago y desglose de comisiones pagadas.',
+            },
+          ],
+        },
+        _pwaSection,
+        _biometricSection,
+      ];
+    }
+  }
+
+  final Map<String, dynamic> _pwaSection = {
+    'title': 'Instalación',
+    'icon': Icons.install_mobile_rounded,
+    'content': [
+      {
+        'subtitle': '📱 En Android (Chrome)',
+        'text': '1. Abre la web en Chrome.\n2. Presiona "Instalar Aplicación" en el menú.\n3. Confirma y aparecerá el icono en tu pantalla de inicio.',
+      },
+      {
+        'subtitle': '🍎 En iPhone (Safari)',
+        'text': '1. Toca el botón "Compartir".\n2. Selecciona "Agregar a pantalla de inicio".',
+      },
+    ],
+  };
+
+  final Map<String, dynamic> _biometricSection = {
+    'title': 'Biometría',
+    'icon': Icons.fingerprint_rounded,
+    'content': [
+      {
+        'subtitle': '🔐 Acceso Rápido',
+        'text': 'Activa Face ID o Huella en "Ajustes" para entrar al sistema sin escribir tu contraseña cada vez.',
+      },
+    ],
+  };
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final role = (authState is Authenticated) ? authState.user.role : UserRole.employee;
+    final sections = _getSections(role);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
         title: Text(
-          'CENTRO DE AYUDA',
+          'AYUDA: ${role == UserRole.employee ? 'BARBEROS' : 'ADMINISTRACIÓN'}',
           style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 2),
         ),
         backgroundColor: Colors.transparent,
@@ -70,7 +130,6 @@ class _HelpPageState extends State<HelpPage> {
       ),
       body: Row(
         children: [
-          // Sidebar (GitBook Style)
           Container(
             width: 80,
             decoration: BoxDecoration(
@@ -78,7 +137,7 @@ class _HelpPageState extends State<HelpPage> {
               border: Border(right: BorderSide(color: Colors.white.withOpacity(0.05))),
             ),
             child: ListView.builder(
-              itemCount: _sections.length,
+              itemCount: sections.length,
               itemBuilder: (context, index) {
                 final isSelected = _selectedSection == index;
                 return InkWell(
@@ -95,7 +154,7 @@ class _HelpPageState extends State<HelpPage> {
                       color: isSelected ? const Color(0xFFC5A028).withOpacity(0.05) : null,
                     ),
                     child: Icon(
-                      _sections[index]['icon'] as IconData,
+                      sections[index]['icon'] as IconData,
                       color: isSelected ? const Color(0xFFC5A028) : Colors.white24,
                       size: 28,
                     ),
@@ -104,7 +163,6 @@ class _HelpPageState extends State<HelpPage> {
               },
             ),
           ),
-          // Content Area
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(32),
@@ -112,7 +170,7 @@ class _HelpPageState extends State<HelpPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _sections[_selectedSection]['title'] as String,
+                    sections[_selectedSection]['title'] as String,
                     style: GoogleFonts.outfit(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
@@ -129,7 +187,7 @@ class _HelpPageState extends State<HelpPage> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  ...(_sections[_selectedSection]['content'] as List<Map<String, String>>).map((item) {
+                  ...(sections[_selectedSection]['content'] as List<Map<String, String>>).map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 48.0),
                       child: Column(
