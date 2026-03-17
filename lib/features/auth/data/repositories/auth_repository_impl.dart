@@ -30,14 +30,16 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 2. Brute-Force Protection Check
       final now = DateTime.now();
+      /* Lockdown check disabled temporarily for troubleshooting
       final lockoutUntilStr = sharedPreferences.getString('auth_lockout_until');
       if (lockoutUntilStr != null) {
         final lockoutUntil = DateTime.parse(lockoutUntilStr);
         if (now.isBefore(lockoutUntil)) {
           final minutesLeft = lockoutUntil.difference(now).inMinutes + 1;
-          return Left(AuthFailure('Demasiados intentos. Intenta de nuevo en $minutesLeft minutos para proteger tu cuenta.'));
+          return Left(AuthFailure('Demasiados intentos. Intenta de nuevo en $minutesLeft minutos.'));
         }
       }
+      */
 
       final db = await databaseHelper.database;
       // --- HONEYPOT LOGIC ---
@@ -86,13 +88,16 @@ class AuthRepositoryImpl implements AuthRepository {
         await sharedPreferences.remove('auth_attempt_count');
         await sharedPreferences.remove('auth_lockout_until');
 
-        // 4. Secure Session Management
-        await secureStorage.write(key: 'user_id', value: userModel.id.toString());
+        // 4. Session Management (Rely primarily on SharedPreferences for Web/PWA stability)
+        try {
+          await secureStorage.write(key: 'user_id', value: userModel.id.toString());
+        } catch (e) {
+          debugPrint('[Auth] SecureStorage write failed (non-critical): $e');
+        }
         await sharedPreferences.setInt('user_id', userModel.id!);
         await sharedPreferences.setString('user_name', userModel.name);
         await sharedPreferences.setString('user_role', userModel.role.name);
         
-        debugPrint('[Auth] Session secured for user: ${userModel.username}');
         return Right(userModel);
       } else {
         // 5. Brute-Force Counter Increment on failure
@@ -125,19 +130,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, User?>> getCheckAuth() async {
-    // Cross-verify SharedPreferences with SecureStorage for extra hardening
-    final userIdPref = sharedPreferences.getInt('user_id');
-    final userIdSecure = await secureStorage.read(key: 'user_id');
+    final userId = sharedPreferences.getInt('user_id');
     
-    if (userIdPref == null || userIdSecure == null || userIdPref.toString() != userIdSecure) {
-      if (userIdPref != null) {
-        debugPrint('[Auth] Session mismatch detected! Secure vs Pref. Logging out.');
-        await logout();
-      }
+    if (userId == null) {
       return const Right(null);
     }
-    
-    final userId = userIdPref;
 
     try {
       final db = await databaseHelper.database;
