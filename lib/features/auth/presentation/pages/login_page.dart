@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 500));
     
     try {
       bool shouldOfferBiometrics = false;
@@ -77,9 +77,11 @@ class _LoginScreenState extends State<LoginScreen>
           final useBiometrics = prefs.getBool('use_biometrics') ?? false;
           
           if (useBiometrics) {
-            Future.delayed(const Duration(milliseconds: 1500), () {
+          if (useBiometrics) {
+            Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) _authenticateWithBiometrics();
             });
+          }
           }
         }
       }
@@ -122,8 +124,9 @@ class _LoginScreenState extends State<LoginScreen>
         localizedReason: 'Inicia sesión de forma segura con Face ID o Huella',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: true,
+          biometricOnly: false,
           useErrorDialogs: true,
+          sensitiveTransaction: true,
         ),
       );
 
