@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/database/database_helper.dart';
 import '../../../pos/domain/entities/sale.dart';
 import '../../../pos/data/repositories/pos_repository_impl.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_state.dart';
-import '../../../auth/domain/entities/user.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -272,7 +268,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           child: Column(
             children: [
               Text(
-                "VER_1.3.5",
+                "VER_1.3.7",
                 style: GoogleFonts.shareTechMono(color: const Color(0xFFC5A028), fontSize: 12),
               ),
               const SizedBox(height: 4),

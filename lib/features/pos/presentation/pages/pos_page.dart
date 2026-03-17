@@ -423,6 +423,7 @@ class _PosPageState extends State<PosPage> {
                       ],
                     ),
                   ),
+                ),
                 if (isAdmin)
                   ListTile(
                     leading: const Icon(Icons.hub_outlined, color: Color(0xFFC5A028)),
