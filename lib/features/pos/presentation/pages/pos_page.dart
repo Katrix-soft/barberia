@@ -164,21 +164,34 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _checkBiometricOptIn() async {
     final prefs = await SharedPreferences.getInstance();
-    final hasAsked = prefs.getBool('has_asked_biometrics') ?? false;
+    // Consolidated key name
+    final hasAsked = prefs.getBool('use_biometrics_asked') ?? false;
     if (hasAsked) return;
 
-    final auth = LocalAuthentication();
-    final isSupported = await auth.isDeviceSupported();
-    final canCheck = await auth.canCheckBiometrics;
+    bool isSupported = false;
+    try {
+      if (kIsWeb) {
+        isSupported = await PwaInstaller.checkWebBiometrics();
+      } else {
+        final auth = LocalAuthentication();
+        final deviceSupported = await auth.isDeviceSupported();
+        final canCheck = await auth.canCheckBiometrics;
+        isSupported = deviceSupported || canCheck;
+      }
+    } catch (e) {
+      debugPrint('[Biometrics] Error checking support: $e');
+    }
 
-    if (isSupported || canCheck) {
+    if (isSupported) {
       if (!mounted) return;
       final result = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Inicio de sesión rápido'),
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: const Text('Inicio de sesión rápido', style: TextStyle(color: Color(0xFFC5A028))),
           content: const Text(
             '¿Deseas habilitar tu Face ID / Huella para acceder automáticamente la próxima vez?',
+            style: TextStyle(color: Colors.white70),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -203,7 +216,7 @@ class _PosPageState extends State<PosPage> {
         ),
       );
 
-      await prefs.setBool('has_asked_biometrics', true);
+      await prefs.setBool('use_biometrics_asked', true);
       if (result == true) {
         await prefs.setBool('use_biometrics', true);
         if (mounted) {
@@ -215,6 +228,9 @@ class _PosPageState extends State<PosPage> {
           );
         }
       }
+    } else {
+      // Even if not supported, mark as asked to avoid repetitive checks
+      await prefs.setBool('use_biometrics_asked', true);
     }
   }
 

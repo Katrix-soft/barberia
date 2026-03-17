@@ -5,14 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'dart:html' show window;
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'dart:js' as js;
-import 'dart:js_util' as js_util;
 import '../../../../core/utils/pwa_installer.dart';
-import '../../../../core/services/email_service.dart';
-import '../../../../core/database/database_helper.dart';
-import '../../../../core/utils/browser_utils.dart';
 import '../../../../core/utils/version_info.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
@@ -47,15 +41,12 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeIn,
     );
 
-    // Sequence our initialization for stability
     _initAuth();
     _animationController.forward();
   }
 
   Future<void> _initAuth() async {
-    // 1. Load credentials first
     await _loadSavedCredentials();
-    // 2. Then check and trigger biometrics with a small delay for UI to settle
     await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) {
       await _checkBiometrics();
@@ -63,42 +54,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    // Robust delay for OS services
     await Future.delayed(const Duration(milliseconds: 1000));
     
     try {
-
       bool shouldOfferBiometrics = false;
 
       if (kIsWeb) {
-        // Direct JS call for PWA stability with proper promise awaiting
-        try {
-          if (js.context.hasProperty('checkWebBiometrics')) {
-            final dynamic result = js.context.callMethod('checkWebBiometrics');
-            if (result != null) {
-              // Robustly handle both Promise and direct bool
-              if (js_util.hasProperty(result, 'then')) {
-                shouldOfferBiometrics = await js_util.promiseToFuture(result);
-              } else {
-                shouldOfferBiometrics = result == true;
-              }
-            }
-          }
-          debugPrint('[Auth] Web Biometrics check v${VersionInfo.appVersion}: supported=$shouldOfferBiometrics');
-        } catch (e) {
-          debugPrint('[Auth] Web Biometrics check failed: $e');
-        }
+        shouldOfferBiometrics = await PwaInstaller.checkWebBiometrics();
       } else {
         final isSupported = await auth.isDeviceSupported();
         final canCheckBiometrics = await auth.canCheckBiometrics;
-        final List<BiometricType> availableBiometrics =
-            await auth.getAvailableBiometrics();
-        
-        // Comprehensive check: hardware support AND capability
         shouldOfferBiometrics = isSupported || canCheckBiometrics;
-        
-        debugPrint('[Auth] Native Biometrics check v${VersionInfo.appVersion}: supported=$isSupported, canCheck=$canCheckBiometrics, enrolled=${availableBiometrics.isNotEmpty}');
-        debugPrint('[Auth] Enrolled types: $availableBiometrics');
       }
 
       if (mounted) {
@@ -106,28 +72,19 @@ class _LoginScreenState extends State<LoginScreen>
           _isBiometricSupported = shouldOfferBiometrics;
         });
 
-        // Enrollment check: Be more permissive on Web/iPhone
-        bool hasEnrollment = true;
-        if (!kIsWeb) {
-          final enrolled = await auth.getAvailableBiometrics();
-          if (enrolled.isEmpty) hasEnrollment = false;
-        }
-
-        if (!hasEnrollment) {
-          debugPrint('[Auth] Supposed to auto-trigger but no biometrics enrolled.');
-          // On some devices, show button but don't auto-trigger
-          return;
-        }
-
-        // Only auto-trigger if explicitly supported to avoid 'Uncaught Error'
-        if (_isBiometricSupported) {
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) _authenticateWithBiometrics();
-          });
+        if (shouldOfferBiometrics) {
+          final prefs = await SharedPreferences.getInstance();
+          final useBiometrics = prefs.getBool('use_biometrics') ?? false;
+          
+          if (useBiometrics) {
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              if (mounted) _authenticateWithBiometrics();
+            });
+          }
         }
       }
     } catch (e) {
-      debugPrint('[Auth] Biometrics stability check error: $e');
+      debugPrint('[Auth] Biometrics check error: $e');
     }
   }
 
@@ -157,24 +114,6 @@ class _LoginScreenState extends State<LoginScreen>
         final authenticated = await PwaInstaller.authenticateWebBiometrics();
         if (authenticated) {
           _onBiometricAuthSuccess();
-        } else {
-          debugPrint('[Auth] Web Biometrics Auth failed or cancelled');
-        }
-        return;
-      }
-
-      // Re-verify enrollment before attempting to avoid generic "Not Available" errors where possible
-      final List<BiometricType> availableBiometrics = await auth.getAvailableBiometrics();
-      
-      if (availableBiometrics.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No hay biometría configurada en este dispositivo. Por favor, configura FaceID o Huella en los ajustes de tu teléfono.'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 4),
-            ),
-          );
         }
         return;
       }
@@ -183,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen>
         localizedReason: 'Inicia sesión de forma segura con Face ID o Huella',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false, // Allow PIN as fallback if biometrics fail
+          biometricOnly: false,
           useErrorDialogs: true,
           sensitiveTransaction: true,
         ),
@@ -193,25 +132,7 @@ class _LoginScreenState extends State<LoginScreen>
         _onBiometricAuthSuccess();
       }
     } on PlatformException catch (e) {
-      debugPrint('[Auth] Biometric auth error: ${e.code} - ${e.message}');
-      String errorMessage = 'Error de biometría: ${e.message}';
-      
-      if (e.code == 'NotAvailable') {
-        errorMessage = 'Tu dispositivo no tiene biometría configurada o no es compatible.';
-      } else if (e.code == 'LockedOut') {
-        errorMessage = 'Biometría bloqueada temporalmente por demasiados intentos.';
-      } else if (e.code == 'PermanentlyLockedOut') {
-        errorMessage = 'Biometría bloqueada. Usa tu PIN o contraseña del teléfono para desbloquearla.';
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
+      debugPrint('[Auth] Biometric auth error: ${e.code}');
     }
   }
 
@@ -222,25 +143,11 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
       _submitLogin();
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Biometría exitosa, pero no hay credenciales guardadas. Inicia sesión manualmente una vez.',
-            ),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      }
     }
   }
 
   void _submitLogin() {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, completa todos los campos')),
-      );
       return;
     }
     _saveCredentials();
@@ -252,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0A), // Deep Black
+      backgroundColor: const Color(0xFF0A0A0A),
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) async {
           if (state is AuthError) {
@@ -260,7 +167,6 @@ class _LoginScreenState extends State<LoginScreen>
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.redAccent,
-                behavior: SnackBarBehavior.floating,
               ),
             );
           } else if (state is Authenticated) {
@@ -268,14 +174,12 @@ class _LoginScreenState extends State<LoginScreen>
             final hasAsked = prefs.getBool('use_biometrics_asked') ?? false;
             
             if (!hasAsked && _isBiometricSupported) {
-               // If it's the first time and biometrics are possible, ask them
                if (mounted) _showEnableBiometricDialog(context);
             }
           }
         },
         child: Stack(
           children: [
-            // Ambient Glows
             Positioned(
               top: -150,
               right: -100,
@@ -288,42 +192,22 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
             ),
-            Positioned(
-              bottom: -150,
-              left: -150,
-              child: Container(
-                width: 500,
-                height: 500,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFC5A028).withOpacity(0.05),
-                ),
-              ),
-            ),
-
-            // Main Content
             Center(
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 40,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 450),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo Container with elevation
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1A1A1A),
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFC5A028).withOpacity(0.2),
-                            ),
+                            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.2)),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFFC5A028).withOpacity(0.1),
@@ -347,7 +231,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 32),
-
                         Text(
                           'BM BARBER',
                           style: GoogleFonts.outfit(
@@ -356,38 +239,14 @@ class _LoginScreenState extends State<LoginScreen>
                             color: const Color(0xFFC5A028),
                             letterSpacing: 3,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'LA EXCELENCIA ES NUESTRO ESTÁNDAR',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            color: Colors.white54,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 48),
-
-                        // Form Card
                         Container(
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1A1A1A).withOpacity(0.9),
                             borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                              color: const Color(0xFFC5A028).withOpacity(0.2),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.5),
-                                blurRadius: 30,
-                                offset: const Offset(0, 15),
-                              ),
-                            ],
+                            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.2)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -396,7 +255,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 controller: _emailController,
                                 label: 'Usuario o Email',
                                 icon: Icons.person_outline_rounded,
-                                isEmail: true,
                               ),
                               const SizedBox(height: 24),
                               _buildBrandingField(
@@ -405,201 +263,65 @@ class _LoginScreenState extends State<LoginScreen>
                                 icon: Icons.lock_outline_rounded,
                                 isPassword: true,
                                 obscureText: _obscurePassword,
-                                onSuffixTap: () {
-                                  setState(
-                                    () => _obscurePassword = !_obscurePassword,
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: _showForgotPasswordDialog,
-                                  child: Text(
-                                    '¿Olvidaste tu contraseña?',
-                                    style: GoogleFonts.outfit(
-                                      color: const Color(
-                                        0xFFC5A028,
-                                      ).withOpacity(0.8),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
+                                onSuffixTap: () => setState(() => _obscurePassword = !_obscurePassword),
                               ),
                               const SizedBox(height: 32),
-
                               BlocBuilder<AuthBloc, AuthState>(
                                 builder: (context, state) {
                                   final isLoading = state is AuthLoading;
-                                  return Container(
-                                    height: 58,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        colors: isLoading
-                                            ? [
-                                                Colors.grey[800]!,
-                                                Colors.grey[900]!,
-                                              ]
-                                            : [
-                                                const Color(0xFFD4AF37),
-                                                const Color(0xFFC5A028),
-                                                const Color(0xFFB8860B),
-                                              ],
-                                      ),
-                                      boxShadow: [
-                                        if (!isLoading)
-                                          BoxShadow(
-                                            color: const Color(
-                                              0xFFC5A028,
-                                            ).withOpacity(0.4),
-                                            blurRadius: 20,
-                                            offset: const Offset(0, 8),
-                                          ),
-                                      ],
+                                  return ElevatedButton(
+                                    onPressed: isLoading ? null : _submitLogin,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFC5A028),
+                                      minimumSize: const Size(double.infinity, 58),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                     ),
-                                    child: ElevatedButton(
-                                      onPressed: isLoading
-                                          ? null
-                                          : _submitLogin,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        minimumSize: const Size(
-                                          double.infinity,
-                                          58,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      child: isLoading
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.black,
-                                                strokeWidth: 3,
-                                              ),
-                                            )
-                                          : Text(
-                                              'INICIAR SESIÓN',
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w900,
-                                                letterSpacing: 1.5,
-                                                color: Colors.black,
-                                              ),
+                                    child: isLoading
+                                        ? const CircularProgressIndicator(color: Colors.black)
+                                        : Text(
+                                            'INICIAR SESIÓN',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              color: Colors.black,
                                             ),
-                                    ),
+                                          ),
                                   );
                                 },
                               ),
                             ],
                           ),
                         ),
-
-                        // Biometric Section
                         if (_isBiometricSupported) ...[
                           const SizedBox(height: 32),
                           InkWell(
                             onTap: _authenticateWithBiometrics,
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                                horizontal: 24,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                               decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFFC5A028,
-                                  ).withOpacity(0.3),
-                                ),
+                                border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
                                 borderRadius: BorderRadius.circular(20),
-                                color: const Color(
-                                  0xFFC5A028,
-                                ).withOpacity(0.05),
+                                color: const Color(0xFFC5A028).withOpacity(0.05),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.fingerprint_rounded,
-                                    color: Color(0xFFC5A028),
-                                    size: 28,
-                                  ),
+                                  const Icon(Icons.fingerprint_rounded, color: Color(0xFFC5A028)),
                                   const SizedBox(width: 12),
                                   Text(
                                     'ACCESO BIOMÉTRICO',
-                                    style: GoogleFonts.outfit(
-                                      color: const Color(0xFFC5A028),
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 14,
-                                      letterSpacing: 1,
-                                    ),
+                                    style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.w900),
                                   ),
                                 ],
                               ),
                             ),
                           ),
                         ],
-
-                        // Manual Install Button for Web
-                        if (kIsWeb && !window.matchMedia('(display-mode: standalone)').matches) ...[
-                          const SizedBox(height: 16),
-                          TextButton.icon(
-                            onPressed: () async {
-                              final success = await PwaInstaller.installPWA();
-                              if (success && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Iniciando instalación...')),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.download_rounded, color: Color(0xFFC5A028), size: 18),
-                            label: Text(
-                              'INSTALAR APLICACIÓN',
-                              style: GoogleFonts.outfit(
-                                color: const Color(0xFFC5A028),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 60),
-                        Column(
-                          children: [
-                            Text(
-                              'PREMIUM EDITION v${VersionInfo.appVersion}',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white12,
-                                fontSize: 11,
-                                letterSpacing: 3,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            // NUCLEAR RESET (Subtle diagnostic tool)
-                            TextButton(
-                              onPressed: () => _confirmNuclearReset(context),
-                              child: Text(
-                                '¿PROBLEMAS? RESETEAR APP',
-                                style: TextStyle(
-                                  color: Colors.red.withOpacity(0.5),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 48),
+                        Text(
+                          'PREMIUM EDITION v${VersionInfo.appVersion}',
+                          style: GoogleFonts.outfit(color: Colors.white12, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -618,447 +340,63 @@ class _LoginScreenState extends State<LoginScreen>
     required String label,
     required IconData icon,
     bool isPassword = false,
-    bool isEmail = false,
     bool obscureText = false,
     VoidCallback? onSuffixTap,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label.toUpperCase(),
-            style: GoogleFonts.outfit(
-              color: const Color(0xFFC5A028),
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-            ),
-          ),
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontSize: 11, fontWeight: FontWeight.w900),
         ),
+        const SizedBox(height: 8),
         TextField(
           controller: controller,
           obscureText: obscureText,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          keyboardType: isEmail
-              ? TextInputType.emailAddress
-              : TextInputType.text,
+          style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFF262626),
-            prefixIcon: Icon(icon, color: Colors.white38, size: 22),
+            prefixIcon: Icon(icon, color: Colors.white38),
             suffixIcon: isPassword
                 ? IconButton(
-                    icon: Icon(
-                      obscureText
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.white38,
-                    ),
+                    icon: Icon(obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white38),
                     onPressed: onSuffixTap,
                   )
                 : null,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 20,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Colors.white10),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFC5A028), width: 2),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           ),
         ),
       ],
     );
   }
 
-  void _showForgotPasswordDialog() {
-    final emailCtrl = TextEditingController(text: _emailController.text);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-          side: const BorderSide(color: Color(0xFFC5A028), width: 0.5),
-        ),
-        title: Text(
-          'RECUPERAR ACCESO',
-          style: GoogleFonts.outfit(
-            color: const Color(0xFFC5A028),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Ingresa tus datos para recibir un correo de recuperación instantáneo.',
-              style: GoogleFonts.outfit(color: Colors.white70),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: emailCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Email o Usuario',
-                labelStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF262626),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFFC5A028)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'CANCELAR',
-              style: TextStyle(color: Colors.white38),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC5A028),
-              minimumSize: const Size(100, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () async {
-              final identifier = emailCtrl.text.trim();
-              if (identifier.isEmpty) return;
-
-              // 1. Check if user exists
-              final userMap = await DatabaseHelper().getUserByEmailOrUsername(identifier);
-
-              if (userMap != null) {
-                final String userEmail = userMap['email'];
-                final String userName = userMap['name'];
-                final int userId = userMap['id'];
-
-                // 2. Generate OTP
-                final String otp = (100000 + (DateTime.now().millisecond * 899)).toString().substring(0, 6);
-                
-                if (context.mounted) Navigator.pop(context); // Close first dialog
-
-                // 3. Send Email (SMTP)
-                final emailSent = await EmailService.sendOTP(
-                  toEmail: userEmail,
-                  toName: userName,
-                  otpCode: otp,
-                );
-
-                if (!emailSent) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Error al enviar el correo. Verifica tu conexión o configuración SMTP.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                  return;
-                }
-
-                // 4. Show OTP Verification Dialog
-                if (context.mounted) {
-                  _showOtpVerificationDialog(userId, otp, userName);
-                }
-
-              } else {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Usuario o correo no encontrado.'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text(
-              'ENVIAR',
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showOtpVerificationDialog(int userId, String correctOtp, String userName) {
-    final otpCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        title: Text('VERIFICACIÓN', style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Se ha enviado un código a tu correo. Ingresalo para continuar.', style: GoogleFonts.outfit(color: Colors.white70)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: otpCtrl,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8),
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: InputDecoration(
-                counterText: "",
-                filled: true,
-                fillColor: const Color(0xFF262626),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR', style: TextStyle(color: Colors.white38))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
-            onPressed: () {
-              if (otpCtrl.text == correctOtp) {
-                Navigator.pop(context);
-                _showNewPasswordDialog(userId);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Código incorrecto'), backgroundColor: Colors.red),
-                );
-              }
-            },
-            child: const Text('VERIFICAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showNewPasswordDialog(int userId) {
-    final passCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        title: Text('NUEVA CONTRASEÑA', style: GoogleFonts.outfit(color: const Color(0xFFC5A028), fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Establece tu nueva contraseña de acceso.', style: GoogleFonts.outfit(color: Colors.white70)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: passCtrl,
-              obscureText: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Nueva Contraseña',
-                labelStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF262626),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
-            onPressed: () async {
-              if (passCtrl.text.isEmpty) return;
-              
-              final db = await DatabaseHelper().database;
-              await db.update(
-                'users',
-                {'password': passCtrl.text},
-                where: 'id = ?',
-                whereArgs: [userId],
-              );
-
-              if (mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contraseña actualizada con éxito'), backgroundColor: Colors.green),
-                );
-              }
-            },
-            child: const Text('GUARDAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _animationController.dispose();
-    super.dispose();
-  }
-
   void _showEnableBiometricDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-          side: const BorderSide(color: Color(0xFFC5A028), width: 0.5),
-        ),
-        title: Text(
-          '¿ACTIVAR ACCESO RÁPIDO?',
-          style: GoogleFonts.outfit(
-            color: const Color(0xFFC5A028),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        content: Text(
-          '¿Te gustaría usar Face ID o Huella para entrar directamente la próxima vez?',
-          style: GoogleFonts.outfit(color: Colors.white70),
-        ),
+        title: const Text('¿Activar acceso biométrico?', style: TextStyle(color: Color(0xFFC5A028))),
+        content: const Text('Podrás iniciar sesión más rápido usando tu huella o Face ID.', style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('use_biometrics_asked', true);
-              await prefs.setBool('use_biometrics', false);
               if (context.mounted) Navigator.pop(context);
             },
             child: const Text('AHORA NO', style: TextStyle(color: Colors.white38)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC5A028),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('use_biometrics_asked', true);
               await prefs.setBool('use_biometrics', true);
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Acceso biométrico activado para la próxima vez'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
+              await prefs.setBool('use_biometrics_asked', true);
+              if (context.mounted) Navigator.pop(context);
             },
-            child: const Text(
-              'SÍ, ACTIVAR',
-              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmNuclearReset(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.redAccent, width: 0.5),
-        ),
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-            const SizedBox(width: 10),
-            Text(
-              'RESETEO DE CACHÉ',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w900,
-                color: Colors.redAccent,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Este botón soluciona los problemas de instalación y errores de la versión antigua.\n\nSe borrará la base de datos local y se recargará la aplicación para activar la v1.1.4.',
-          style: GoogleFonts.outfit(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR', style: TextStyle(color: Colors.white38)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              
-              // Show loading overlay
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFC5A028)),
-                ),
-              );
-
-              try {
-                await DatabaseHelper().resetDatabase();
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                
-                if (mounted) {
-                  // Wait a bit to show progress
-                  await Future.delayed(const Duration(seconds: 2));
-                  Navigator.pop(context); // Remove loader
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sistema limpiado correctamente. Reiniciando...'),
-                      backgroundColor: Colors.blue,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                  
-                  await Future.delayed(const Duration(seconds: 1));
-                  if (kIsWeb) {
-                    BrowserUtils.hardReload();
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error al resetear: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
-            },
-            child: const Text('RESETEAR AHORA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text('ACTIVAR', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),

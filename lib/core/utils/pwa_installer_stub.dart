@@ -6,4 +6,8 @@ class PwaInstaller {
   static Future<bool> authenticateWebBiometrics() async {
     return false;
   }
+
+  static Future<bool> checkWebBiometrics() async {
+    return false;
+  }
 }

@@ -4,9 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:js' as js;
-import 'dart:js_util' as js_util;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import '../../../../core/utils/pwa_installer.dart';
 import '../../../../core/utils/version_info.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
@@ -39,24 +38,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkBiometricSupport() async {
-    // Small delay to ensure plugin is ready
     await Future.delayed(const Duration(milliseconds: 500));
     
     try {
       bool isSupported = false;
       if (kIsWeb) {
-        try {
-          final dynamic result = js.context.callMethod('checkWebBiometrics');
-          if (result != null) {
-            isSupported = await js_util.promiseToFuture(result);
-          }
-        } catch (e) {
-          debugPrint('[Settings] Web Biometric check failed: $e');
-        }
+        isSupported = await PwaInstaller.checkWebBiometrics();
       } else {
         final deviceSupported = await _auth.isDeviceSupported();
         final canCheck = await _auth.canCheckBiometrics;
-        // Even if no biometrics are enrolled, we show the option if hardware is supported
         isSupported = deviceSupported || canCheck;
       }
       
@@ -75,12 +65,20 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     if (value) {
       try {
+        if (kIsWeb) {
+          final authenticated = await PwaInstaller.authenticateWebBiometrics();
+          if (authenticated) {
+            await prefs.setBool('use_biometrics', true);
+            setState(() => _useBiometrics = true);
+          }
+          return;
+        }
+
         final authenticated = await _auth.authenticate(
-          localizedReason:
-              'Confirma tu identidad para activar el acceso biométrico',
+          localizedReason: 'Confirma tu identidad para activar el acceso biométrico',
           options: const AuthenticationOptions(
             stickyAuth: true,
-            biometricOnly: false, // Allow PIN fallback for activation if biometrics fail
+            biometricOnly: false,
             useErrorDialogs: true,
           ),
         );
@@ -152,9 +150,9 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildSectionHeader('SEGURIDAD', primaryGold),
             if (_isBiometricSupported)
               FutureBuilder<List<BiometricType>>(
-                future: _auth.getAvailableBiometrics(),
+                future: kIsWeb ? Future.value([]) : _auth.getAvailableBiometrics(),
                 builder: (context, snapshot) {
-                  final hasEnrollment = snapshot.hasData && snapshot.data!.isNotEmpty;
+                  final hasEnrollment = kIsWeb || (snapshot.hasData && snapshot.data!.isNotEmpty);
                   return _buildSettingCard(
                     context,
                     icon: Icons.fingerprint_rounded,
@@ -207,7 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
               title: 'Versión',
               subtitle: 'BM BARBER v${VersionInfo.appVersion}',
               trailing:
-                  Text('Premium', style: TextStyle(color: isDark ? Colors.grey : Colors.black38)),
+                  const Text('Premium', style: TextStyle(color: Colors.grey)),
             ),
             const SizedBox(height: 60),
             Padding(
