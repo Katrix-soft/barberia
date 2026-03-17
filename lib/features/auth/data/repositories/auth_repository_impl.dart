@@ -29,7 +29,6 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       // 2. Brute-Force Protection Check
-      final now = DateTime.now();
       /* Lockdown check disabled temporarily for troubleshooting
       final lockoutUntilStr = sharedPreferences.getString('auth_lockout_until');
       if (lockoutUntilStr != null) {

@@ -333,7 +333,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
     
     // Fetch staff if headBarber
     final authState = context.read<AuthBloc>().state;
-    final bool isHeadBarber = authState is Authenticated && authState.user.role == 'headBarber';
+    final bool isHeadBarber = authState is Authenticated && authState.user.role == UserRole.headBarber;
     String targetUserName = _currentUserName ?? 'admin';
     List<Map<String, dynamic>> staffList = [];
 
