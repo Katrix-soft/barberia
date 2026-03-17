@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 2000));
     
     try {
       bool shouldOfferBiometrics = false;
@@ -122,9 +122,8 @@ class _LoginScreenState extends State<LoginScreen>
         localizedReason: 'Inicia sesión de forma segura con Face ID o Huella',
         options: const AuthenticationOptions(
           stickyAuth: true,
-          biometricOnly: false,
+          biometricOnly: true,
           useErrorDialogs: true,
-          sensitiveTransaction: true,
         ),
       );
 

@@ -301,7 +301,11 @@
             displayName: "Nacho"
           },
           pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: { authenticatorAttachment: "platform" }, // Forces Fingerprint/FaceID
+          authenticatorSelection: { 
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+            residentKey: "preferred"
+          },
           timeout: 60000
         };
 
