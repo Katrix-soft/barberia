@@ -190,8 +190,47 @@ class _SettingsPageState extends State<SettingsPage> {
                   subtitle: 'Cambia el tema visual de la aplicación',
                   trailing: Switch(
                     value: currentIsDark,
-                    onChanged: (val) =>
-                        context.read<ThemeBloc>().add(ToggleTheme()),
+                    onChanged: (val) async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: const Color(0xFF1A1A1A),
+                          title: Text(
+                            '¿Guardar preferencia?',
+                            style: GoogleFonts.outfit(color: primaryGold, fontWeight: FontWeight.bold),
+                          ),
+                          content: Text(
+                            '¿Quieres establecer el modo ${val ? "Oscuro" : "Claro"} como tu predeterminado para siempre?',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('SOLO POR AHORA', style: TextStyle(color: Colors.white38)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: primaryGold),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('PARA SIEMPRE', style: TextStyle(color: Colors.black)),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed != null) {
+                        if (mounted) {
+                          context.read<ThemeBloc>().add(ToggleTheme());
+                          if (confirmed) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Preferencia guardada: Modo ${val ? "Oscuro" : "Claro"}'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
                     activeColor: primaryGold,
                   ),
                 );

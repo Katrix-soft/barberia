@@ -72,9 +72,9 @@ class MyApp extends StatelessWidget {
             return MaterialApp(
               title: 'Katrix Barber',
               debugShowCheckedModeBanner: false,
-              theme: AppTheme.darkTheme, // Avoid light theme flashes
+              theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
-              themeMode: ThemeMode.dark, // Forced dark mode
+              themeMode: themeState.themeMode,
               home: BlocBuilder<AuthBloc, AuthState>(
                 builder: (context, state) {
                   if (state is Authenticated) {
