@@ -1,8 +1,8 @@
 {
-  "app_version": "1.4.0",
+  "app_version": "1.4.1",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "CORE ACCESS & BIOMETRIC HARDENING v1.4.0",
+  "message": "CRITICAL BUILD FIX & USER ACCESS v1.4.1",
   "update_url": "https://barber.katrix.com.ar"
 }

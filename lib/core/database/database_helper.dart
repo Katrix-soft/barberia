@@ -118,11 +118,11 @@ class DatabaseHelper {
       } else {
         // ALWAYS update core users to ensure they can log in with their username as password
         // and have the correct roles if anything changed in the code.
-        await db.update({
+        await db.update('users', {
           'password': user['password'],
           'role': user['role'],
           'name': user['name']
-        }, 'users', where: 'username = ?', whereArgs: [user['username']]);
+        }, where: 'username = ?', whereArgs: [user['username']]);
         debugPrint('[DB] User ${user['username']} RE-VALIDATED');
       }
     }
