@@ -77,11 +77,9 @@ class _LoginScreenState extends State<LoginScreen>
           final useBiometrics = prefs.getBool('use_biometrics') ?? false;
           
           if (useBiometrics) {
-          if (useBiometrics) {
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) _authenticateWithBiometrics();
             });
-          }
           }
         }
       }

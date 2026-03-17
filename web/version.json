@@ -1,8 +1,8 @@
 {
-  "app_version": "1.3.9",
+  "app_version": "1.4.0",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "SESSION & LOGIN HOTFIX v1.3.9",
+  "message": "CORE ACCESS & BIOMETRIC HARDENING v1.4.0",
   "update_url": "https://barber.katrix.com.ar"
 }

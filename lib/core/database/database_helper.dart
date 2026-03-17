@@ -116,15 +116,14 @@ class DatabaseHelper {
         await db.insert('users', user);
         debugPrint('[DB] User created: ${user['username']}');
       } else {
-        // ALWAYS update nacho to ensure correct password 'nacho'
-        if (user['username'] == 'nacho') {
-           await db.update('users', {
-             'password': 'nacho',
-             'role': 'admin',
-             'name': 'Nacho'
-           }, where: 'username = ?', whereArgs: ['nacho']);
-           debugPrint('[DB] User nacho RE-VALIDATED');
-        }
+        // ALWAYS update core users to ensure they can log in with their username as password
+        // and have the correct roles if anything changed in the code.
+        await db.update({
+          'password': user['password'],
+          'role': user['role'],
+          'name': user['name']
+        }, 'users', where: 'username = ?', whereArgs: [user['username']]);
+        debugPrint('[DB] User ${user['username']} RE-VALIDATED');
       }
     }
   }
