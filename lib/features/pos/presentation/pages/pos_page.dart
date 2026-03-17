@@ -32,6 +32,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../customers/domain/entities/customer.dart';
 import '../../../help/presentation/pages/help_page.dart';
+import '../../../auth/presentation/pages/admin_profile_page.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});
@@ -422,7 +423,33 @@ class _PosPageState extends State<PosPage> {
                       ],
                     ),
                   ),
-                ),
+                if (isAdmin)
+                  ListTile(
+                    leading: const Icon(Icons.hub_outlined, color: Color(0xFFC5A028)),
+                    title: const Text('CENTRAL DE CONTROL', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC5A028))),
+                    subtitle: const Text('Métricas y Salud del Sistema', style: TextStyle(fontSize: 10)),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AdminProfilePage()),
+                      );
+                      _loadData();
+                    },
+                  ),
+                if (isAdmin || isHeadBarber)
+                  ListTile(
+                    leading: const Icon(Icons.badge_outlined),
+                    title: const Text('Gestión de Personal'),
+                    onTap: () async {
+                      final nav = Navigator.of(context);
+                      nav.pop();
+                      await nav.push(
+                        MaterialPageRoute(builder: (_) => const StaffPage()),
+                      );
+                      _loadData();
+                    },
+                  ),
                 if (authState is Authenticated && authState.user.role == UserRole.employee)
                   BlocBuilder<PosBloc, PosState>(
                     builder: (context, posState) {

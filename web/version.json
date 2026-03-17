@@ -1,8 +1,8 @@
 {
-  "app_version": "1.3.4",
+  "app_version": "1.3.5",
   "db_version": 26,
   "force_update": true,
   "maintenance_mode": false,
-  "message": "ROLE-BASED HELP CENTERS v1.3.4",
+  "message": "MASTER CONTROL CENTER v1.3.5",
   "update_url": "https://barber.katrix.com.ar"
 }
