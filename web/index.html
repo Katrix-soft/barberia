@@ -35,6 +35,9 @@
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="manifest" href="manifest.json">
 
+  <!-- scripts for mobile_scanner web support -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
   <title>BM BARBER</title>
 
   <style>
@@ -198,6 +201,55 @@
       cursor: pointer;
       font-size: 20px;
     }
+
+    /* Update PWA Banner */
+    #update-banner {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10001;
+      padding: 16px 24px;
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid rgba(197, 160, 40, 0.8);
+      border-radius: 50px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(197, 160, 40, 0.2);
+      color: white;
+      backdrop-filter: blur(15px);
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-width: 300px;
+      animation: slideDownUpdate 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes slideDownUpdate {
+      from { top: -100px; opacity: 0; }
+      to { top: 20px; opacity: 1; }
+    }
+
+    .update-btn {
+      background: var(--gold);
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .update-btn:hover {
+      box-shadow: 0 0 15px rgba(197, 160, 40, 0.4);
+      transform: scale(1.05);
+    }
+    
+    .update-text {
+      font-size: 14px;
+      font-weight: 600;
+    }
   </style>
 </head>
 
@@ -233,6 +285,12 @@
       <div class="ios-step">2. Baja y selecciona <br><b>"Agregar a pantalla de inicio"</b> <img src="icons/Icon-192.png" class="ios-icon"></div>
       <div class="ios-step">3. Presiona <b>"Agregar"</b> arriba a la derecha.</div>
     </div>
+  </div>
+
+  <!-- PWA Update Banner -->
+  <div id="update-banner">
+    <div class="update-text">¡Nueva versión disponible! ✂️</div>
+    <button class="update-btn" onclick="forceUpdate()">ACTUALIZAR</button>
   </div>
 
   <script src="flutter_bootstrap.js" async></script>
@@ -414,6 +472,36 @@
         outputArray[i] = rawData.charCodeAt(i);
       }
       return outputArray;
+    }
+
+    // PWA Update Notification Logic
+    if ('serviceWorker' in navigator) {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      navigator.serviceWorker.ready.then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] New update installed & waiting. Showing banner...');
+                document.getElementById('update-banner').style.display = 'flex';
+                window.forceUpdate = function() {
+                  document.getElementById('update-banner').style.display = 'none';
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  // Fallback in case controllerchange doesn't fire
+                  setTimeout(() => window.location.reload(), 600);
+                };
+              }
+            });
+          }
+        });
+      });
     }
   </script>
 </body>

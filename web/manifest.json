@@ -36,5 +36,28 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nueva Venta / POS",
+      "short_name": "POS",
+      "description": "Ir directo a la caja y cobrar",
+      "url": "/?route=pos",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Añadir Gasto",
+      "short_name": "Gastos",
+      "description": "Registrar un nuevo gasto del local",
+      "url": "/?route=gastos",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Inventario",
+      "short_name": "Inventario",
+      "description": "Ver stock actual",
+      "url": "/?route=inventory",
+      "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }

@@ -416,7 +416,14 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
   bool _isScanned = false;
 
   @override
+  void initState() {
+    super.initState();
+    controller.start(); // Forzar encendido de camara en nativo (Android/iOS)
+  }
+
+  @override
   void dispose() {
+    controller.stop();
     controller.dispose();
     super.dispose();
   }
