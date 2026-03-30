@@ -53,6 +53,22 @@ class PosRepositoryImpl implements PosRepository {
 
         final saleId = await txn.insert('sales', saleModel.toMap());
 
+        // If it's a personal consumption, we MUST create an expense record
+        // so it shows up in the "A Cuenta" / Debt tracking system.
+        if (sale.paymentMethod == PaymentMethod.personal) {
+          final itemsDescription = sale.items.map((i) => "${i.quantity}x ${i.productName}").join(", ");
+          await txn.insert('expenses', {
+            'description': 'Consumo POS: $itemsDescription',
+            'amount': sale.total,
+            'due_date': sale.date.toIso8601String(),
+            'is_paid': 0,
+            'category': 'Consumo Personal',
+            'user_name': sale.userName,
+            'type': 'personal',
+            'is_synced': 0,
+          });
+        }
+
         for (var item in sale.items) {
           final itemModel = SaleItemModel(
             saleId: saleId,

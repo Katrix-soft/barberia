@@ -1,7 +1,7 @@
 name: posbarber
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.4.2+1
+version: 1.4.3+1
 
 environment:
   sdk: ^3.9.2
@@ -28,6 +28,7 @@ dependencies:
   path_provider: ^2.1.5
   font_awesome_flutter: ^10.7.0
   local_auth: ^2.3.0
+  local_auth_windows: ^1.0.11
   url_launcher: ^6.3.2
   audioplayers: ^6.6.0
   http: ^1.6.0

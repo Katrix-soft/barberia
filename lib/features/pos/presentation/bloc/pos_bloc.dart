@@ -93,7 +93,7 @@ class PosBloc extends Bloc<PosEvent, PosState> {
         return expenseUserName == normalizedCurrentName;
       }).toList();
 
-      final pending = currentUserExpenses.where((e) => !e.isPaid).toList();
+      final pending = currentUserExpenses.where((e) => !e.isPaid && e.category == 'Consumo Personal').toList();
       pendingAmount = pending.fold(0, (sum, e) => sum + e.amount);
       totalExpenses = currentUserExpenses.fold(0, (sum, e) => sum + e.amount);
       if (pending.isNotEmpty) {
