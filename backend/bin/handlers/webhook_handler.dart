@@ -28,17 +28,29 @@ class WebhookHandler {
     print('[$timestamp][Webhook] ─────────────────────────────────────');
     print('[$timestamp][Webhook] Notificación recibida de Mercado Pago');
 
-    // ✅ PASO 1: Responder HTTP 200 INMEDIATAMENTE para que MP no reintente.
-    // Procesamos de forma asíncrona sin bloquear la respuesta.
-    _processWebhookAsync(request, timestamp);
+    try {
+      // ✅ PASO 1: Leer el cuerpo ANTES de responder. 
+      // Si devolvemos el Response antes de leerlo, Shelf puede cerrar el stream.
+      final String body = await request.readAsString();
+      
+      // Procesamos de forma asíncrona sin bloquear la respuesta de red.
+      _processWebhookAsync(body, timestamp);
 
-    return Response.ok('OK\n', headers: {'Content-Type': 'text/plain'});
+      return Response.ok('OK\n', headers: {'Content-Type': 'text/plain'});
+    } catch (e) {
+      print('[$timestamp][Webhook] ❌ Error inicial al leer el body: $e');
+      return Response.internalServerError(body: 'Error reading body\n');
+    }
   }
 
-  /// Procesa la notificación de forma asíncrona DESPUÉS de responder 200.
-  void _processWebhookAsync(Request request, String timestamp) async {
+  /// Procesa la notificación después de leer el body.
+  Future<void> _processWebhookAsync(String body, String timestamp) async {
     try {
-      final body = await request.readAsString();
+      if (body.isEmpty) {
+        print('[$timestamp][Webhook] ⚠️  Body vacío, ignorando.');
+        return;
+      }
+
       print('[$timestamp][Webhook] Body recibido: $body');
 
       Map<String, dynamic> data;
@@ -49,22 +61,22 @@ class WebhookHandler {
         return;
       }
 
-      final topic = data['topic'] as String? ?? data['type'] as String?;
-      final resourceId = data['id']?.toString();
+      final String? topic = data['topic'] as String? ?? data['type'] as String?;
+      final String? resourceId = data['id']?.toString();
 
       print('[$timestamp][Webhook] Tópico: $topic | ID: $resourceId');
 
-      // ✅ PASO 2: Detectar tópico merchant_order
       if (topic == 'merchant_order') {
         await _handleMerchantOrder(resourceId, timestamp);
       } else {
-        print('[$timestamp][Webhook] Tópico "$topic" ignorado (solo procesamos merchant_order).');
+        print('[$timestamp][Webhook] Tópico "$topic" ignorado.');
       }
     } catch (e, stack) {
-      print('[$timestamp][Webhook] ❌ Error inesperado en procesamiento: $e');
+      print('[$timestamp][Webhook] ❌ Error inesperado: $e');
       print('[$timestamp][Webhook] Stack: $stack');
     }
   }
+
 
   /// Consulta el merchant_order a MP y actualiza el turno si está cerrado.
   Future<void> _handleMerchantOrder(String? orderId, String timestamp) async {

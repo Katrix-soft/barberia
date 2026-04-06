@@ -1,5 +1,5 @@
 class VersionInfo {
-  static const String appVersion = '1.4.7';
+  static const String appVersion = '1.4.8';
   static const int dbVersion = 27;
   
   // URL where version.json is hosted
