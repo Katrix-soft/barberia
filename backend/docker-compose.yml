@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # ─── Frontend Flutter Web (existente, no modificar) ───────────────
+  posbarber_web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: posbarber_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - npm_network
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+
+  # ─── Backend Dart/Shelf — Webhooks y API ──────────────────────────
+  barber_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: barber_backend
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    networks:
+      - npm_network
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+      - PORT=8090
+      # La base de datos SQLite es la MISMA que usa la app Flutter
+      # Se monta desde el volumen existente en el VPS
+      - DB_PATH=/data/pos_barber.db
+      # El token se inyecta desde el .env del VPS o secrets del compose
+      - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+    volumes:
+      # Montar el directorio de datos donde está la DB de la app
+      # Ajustar esta ruta al path real en el VPS si es distinto
+      - /opt/posbarber/data:/data:rw
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8090/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  npm_network:
+    external: true

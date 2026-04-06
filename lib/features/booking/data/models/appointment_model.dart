@@ -10,6 +10,8 @@ class AppointmentModel extends Appointment {
     required super.dateTime,
     super.status = AppointmentStatus.pending,
     super.notes,
+    super.paymentMethod,
+    super.paidAt,
   });
 
   factory AppointmentModel.fromMap(Map<String, dynamic> map) {
@@ -25,6 +27,8 @@ class AppointmentModel extends Appointment {
         orElse: () => AppointmentStatus.pending,
       ),
       notes: map['notes'],
+      paymentMethod: map['payment_method'],
+      paidAt: map['paid_at'] != null ? DateTime.parse(map['paid_at']) : null,
     );
   }
 
@@ -38,6 +42,8 @@ class AppointmentModel extends Appointment {
       'date_time': dateTime.toIso8601String(),
       'status': status.name,
       'notes': notes,
+      'payment_method': paymentMethod,
+      'paid_at': paidAt?.toIso8601String(),
     };
   }
 
@@ -51,6 +57,8 @@ class AppointmentModel extends Appointment {
       dateTime: entity.dateTime,
       status: entity.status,
       notes: entity.notes,
+      paymentMethod: entity.paymentMethod,
+      paidAt: entity.paidAt,
     );
   }
 }

@@ -284,6 +284,16 @@ class DatabaseHelper {
         debugPrint('[DB] Error in v26 migration: $e');
       }
     }
+    if (oldVersion < 27) {
+      // Columnas necesarias para el webhook de Mercado Pago
+      try {
+        await db.execute('ALTER TABLE appointments ADD COLUMN payment_method TEXT DEFAULT NULL');
+      } catch (e) { debugPrint('[DB] v27: payment_method ya existe o error: $e'); }
+      try {
+        await db.execute('ALTER TABLE appointments ADD COLUMN paid_at TEXT DEFAULT NULL');
+      } catch (e) { debugPrint('[DB] v27: paid_at ya existe o error: $e'); }
+      debugPrint('[DB] Migration v27: campos de pago agregados a appointments.');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -442,12 +452,15 @@ class DatabaseHelper {
           date_time TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
           notes TEXT,
+          payment_method TEXT DEFAULT NULL,
+          paid_at TEXT DEFAULT NULL,
           is_synced INTEGER DEFAULT 0,
           FOREIGN KEY (customer_id) REFERENCES customers (id),
           FOREIGN KEY (service_id) REFERENCES products (id)
         )
       ''');
     }
+
 
     if (version >= 4) {
       await db.execute('''

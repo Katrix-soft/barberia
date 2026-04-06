@@ -80,7 +80,17 @@ class _BookingPageState extends State<BookingPage> {
         ? Colors.green
         : appointment.status == AppointmentStatus.cancelled
         ? Colors.red
+        : appointment.status == AppointmentStatus.paid
+        ? Colors.blue
         : const Color(0xFFC5A028);
+
+    String statusLabel = 'PENDIENTE';
+    switch (appointment.status) {
+      case AppointmentStatus.completed: statusLabel = 'COMPLETADO'; break;
+      case AppointmentStatus.cancelled: statusLabel = 'CANCELADO'; break;
+      case AppointmentStatus.paid: statusLabel = 'PAGADO'; break;
+      case AppointmentStatus.pending: statusLabel = 'PENDIENTE'; break;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -92,7 +102,10 @@ class _BookingPageState extends State<BookingPage> {
             color: statusColor.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.person, color: statusColor),
+          child: Icon(
+            appointment.status == AppointmentStatus.paid ? Icons.check_circle_outline : Icons.person, 
+            color: statusColor
+          ),
         ),
         title: Text(
           appointment.customerName,
@@ -115,6 +128,12 @@ class _BookingPageState extends State<BookingPage> {
                   DateFormat('dd/MM/yyyy HH:mm').format(appointment.dateTime),
                   style: TextStyle(color: Colors.grey[500], fontSize: 13),
                 ),
+                if (appointment.status == AppointmentStatus.paid) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.qr_code_2_rounded, size: 14, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  const Text('QR', style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
               ],
             ),
           ],
@@ -134,6 +153,10 @@ class _BookingPageState extends State<BookingPage> {
             const PopupMenuItem(
               value: AppointmentStatus.completed,
               child: Text('Completado'),
+            ),
+            const PopupMenuItem(
+              value: AppointmentStatus.paid,
+              child: Text('Pagado'),
             ),
             const PopupMenuItem(
               value: AppointmentStatus.cancelled,
@@ -156,7 +179,7 @@ class _BookingPageState extends State<BookingPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              appointment.status.name.toUpperCase(),
+              statusLabel,
               style: TextStyle(
                 color: statusColor,
                 fontSize: 10,

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus { pending, completed, cancelled }
+enum AppointmentStatus { pending, completed, cancelled, paid }
 
 class Appointment extends Equatable {
   final int? id;
@@ -11,6 +11,8 @@ class Appointment extends Equatable {
   final DateTime dateTime;
   final AppointmentStatus status;
   final String? notes;
+  final String? paymentMethod;
+  final DateTime? paidAt;
 
   const Appointment({
     this.id,
@@ -21,6 +23,8 @@ class Appointment extends Equatable {
     required this.dateTime,
     this.status = AppointmentStatus.pending,
     this.notes,
+    this.paymentMethod,
+    this.paidAt,
   });
 
   @override
@@ -33,5 +37,7 @@ class Appointment extends Equatable {
     dateTime,
     status,
     notes,
+    paymentMethod,
+    paidAt,
   ];
 }

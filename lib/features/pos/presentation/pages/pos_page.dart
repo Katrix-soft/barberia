@@ -1762,17 +1762,9 @@ class _PosPageState extends State<PosPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _PaymentMethodButton(
-                        label: 'TRANSF.',
-                        icon: Icons.account_balance_rounded,
-                        onTap: () => _finalizeSale(context, PaymentMethod.transfer),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _PaymentMethodButton(
-                        label: 'TARJETA',
-                        icon: Icons.credit_card_rounded,
-                        onTap: () => _finalizeSale(context, PaymentMethod.card),
+                        label: 'PAGO QR',
+                        icon: Icons.qr_code_2_rounded,
+                        onTap: () => _finalizeSale(context, PaymentMethod.qr),
                       ),
                     ),
                   ],

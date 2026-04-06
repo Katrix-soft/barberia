@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum PaymentMethod { cash, transfer, card, personal }
+enum PaymentMethod { cash, transfer, card, personal, qr }
 
 class Sale extends Equatable {
   final int? id;
