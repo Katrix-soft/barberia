@@ -134,7 +134,7 @@ class WebhookHandler {
     }
 
     try {
-      final db = await openDatabase(dbPath);
+      final db = await databaseFactory.openDatabase(dbPath);
 
       // Verificar que el turno existe
       final existing = await db.query(
