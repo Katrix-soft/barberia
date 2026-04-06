@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   posbarber_web:
@@ -13,6 +12,30 @@ services:
       - npm_network
     environment:
       - TZ=America/Argentina/Buenos_Aires
+
+  barber_backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: barber_backend
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    networks:
+      - npm_network
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+      - PORT=8090
+      - DB_PATH=/data/pos_barber.db
+      - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+    volumes:
+      - /opt/posbarber/data:/data:rw
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8090/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   npm_network:
