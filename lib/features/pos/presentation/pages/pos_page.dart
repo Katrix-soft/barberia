@@ -12,6 +12,7 @@ import '../../../customers/presentation/pages/customers_page.dart';
 import '../../../inventory/presentation/pages/inventory_page.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
+import '../widgets/mercadopago_qr_dialog.dart';
 import '../../../auth/presentation/pages/staff_page.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/presentation/bloc/user_bloc.dart';
@@ -1764,7 +1765,19 @@ class _PosPageState extends State<PosPage> {
                       child: _PaymentMethodButton(
                         label: 'PAGO QR',
                         icon: Icons.qr_code_2_rounded,
-                        onTap: () => _finalizeSale(context, PaymentMethod.qr),
+                        onTap: () async {
+                          final success = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => MercadopagoQRDialog(
+                              total: state.total,
+                              orderReference: 'VEN-${DateTime.now().millisecondsSinceEpoch}',
+                            ),
+                          );
+                          if (success == true) {
+                            _finalizeSale(context, PaymentMethod.qr);
+                          }
+                        },
                       ),
                     ),
                   ],

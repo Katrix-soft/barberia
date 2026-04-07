@@ -35,6 +35,7 @@ dependencies:
   mailer: ^7.1.0
   crypto: ^3.0.3
   flutter_secure_storage: ^9.2.2
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -55,5 +56,6 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
+    - .env
     - assets/images/
     - assets/audio/
