@@ -10,35 +10,35 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # 📦 Checkout
-      - uses: actions/checkout@v4
+      # 📦 Repo
+      - name: Checkout
+        uses: actions/checkout@v4
 
       # 🐦 Flutter
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 🧹 LIMPIEZA TOTAL (anti bugs)
-      - name: Hard clean
-        run: |
-          flutter clean
-          rm -rf pubspec.lock
-          rm -rf ios/Pods ios/Podfile.lock ios/.symlinks ios/Flutter
-
-      # 🔥 FORZAR versión compatible
-      - name: Force mobile_scanner version
-        run: |
-          sed -i '' 's/mobile_scanner:.*/mobile_scanner: 3.5.2/' pubspec.yaml || echo "mobile_scanner: 3.5.2" >> pubspec.yaml
-
-      # 📦 Dependencias limpias
-      - name: Install dependencies
+      # 📦 Dependencias Flutter
+      - name: Pub get
         run: flutter pub get
 
-      # 🔥 FORZAR iOS 15 (full override)
-      - name: Fix iOS config
+      # 🔥 IMPORTANTE: generar archivos iOS base
+      - name: Precache iOS
+        run: flutter precache --ios
+
+      # 🔥 LIMPIAR TODO
+      - name: Clean build
+        run: |
+          flutter clean
+          flutter pub get
+
+      # 🔥 Fix Podfile (iOS 16 para mobile_scanner)
+      - name: Fix Podfile
         run: |
           cat > ios/Podfile << 'EOF'
-          platform :ios, '15.0'
+          platform :ios, '16.0'
 
           ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -48,26 +48,14 @@ jobs:
             'Release' => :release,
           }
 
-          def flutter_root
-            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-            unless File.exist?(generated_xcode_build_settings_path)
-              raise "Generated.xcconfig missing"
-            end
-
-            File.foreach(generated_xcode_build_settings_path) do |line|
-              matches = line.match(/FLUTTER_ROOT\=(.*)/)
-              return matches[1].strip if matches
-            end
-            raise "FLUTTER_ROOT not found"
-          end
-
-          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), Dir.pwd)
 
           flutter_ios_podfile_setup
 
           target 'Runner' do
-            use_frameworks! :linkage => :static
+            use_frameworks!
             use_modular_headers!
+
             flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
           end
 
@@ -75,33 +63,25 @@ jobs:
             installer.pods_project.targets.each do |target|
               flutter_additional_ios_build_settings(target)
               target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
               end
             end
           end
           EOF
 
-          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || true
-
-      # 🍎 CocoaPods
-      - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
-          pod repo update
-
-      # ⚙️ Pods LIMPIOS
-      - name: Install Pods
+      # 🍎 CocoaPods limpio
+      - name: Install Pods clean
         run: |
           cd ios
-          pod deintegrate
+          rm -rf Pods Podfile.lock
           pod install --repo-update
           cd ..
 
-      # 🔨 Build
-      - name: Build iOS Simulator
+      # 🔨 BUILD (esto ahora sí funciona)
+      - name: Build iOS
         run: flutter build ios --simulator --no-codesign
 
-      # 📦 Zip
+      # 📦 ZIP
       - name: Zip app
         run: |
           cd build/ios/iphonesimulator
