@@ -13,17 +13,17 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # 📦 Clonar repo
+      # 📦 Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🐦 Instalar Flutter
+      # 🐦 Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 🔍 Debug entorno
+      # 🔍 Debug
       - name: Flutter doctor
         run: flutter doctor -v
 
@@ -31,25 +31,68 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # 🔧 Fix iOS deployment target (para mobile_scanner)
-      - name: Fix iOS deployment target
+      # 🔥 FORZAR Podfile (solución definitiva)
+      - name: Fix Podfile iOS 15
         run: |
-          sed -i '' 's/platform :ios, .*/platform :ios, '\''15.0'\''/' ios/Podfile || echo "platform already set"
-      
-      # 🍎 Instalar CocoaPods
+          cat > ios/Podfile << 'EOF'
+          platform :ios, '15.0'
+
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+          project 'Runner', {
+            'Debug' => :debug,
+            'Profile' => :release,
+            'Release' => :release,
+          }
+
+          def flutter_root
+            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+            unless File.exist?(generated_xcode_build_settings_path)
+              raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+            end
+
+            File.foreach(generated_xcode_build_settings_path) do |line|
+              matches = line.match(/FLUTTER_ROOT\=(.*)/)
+              return matches[1].strip if matches
+            end
+            raise "FLUTTER_ROOT not found"
+          end
+
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+          flutter_ios_podfile_setup
+
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+              end
+            end
+          end
+          EOF
+
+      # 🍎 CocoaPods
       - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
           pod repo update
 
-      # ⚙️ Instalar pods
-      - name: Setup iOS
+      # ⚙️ Pods
+      - name: Install Pods
         run: |
           cd ios
           pod install
           cd ..
 
-      # 🔨 Build iOS (con logs completos)
+      # 🔨 Build
       - name: Build iOS Simulator
         run: |
           flutter clean
@@ -57,7 +100,7 @@ jobs:
           cd build/ios/iphonesimulator
           zip -r app.zip Runner.app
 
-      # 🚀 Subir a Appetize
+      # 🚀 Upload
       - name: Upload to Appetize
         run: |
           curl -X POST https://api.appetize.io/v1/apps \
