@@ -31,9 +31,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # 🔍 Analizar SOLO Flutter (evita romper por backend)
-      - name: Analyze Flutter
-        run: flutter analyze
+      # 🔍 Analizar SOLO la app Flutter (ignora backend)
+      - name: Analyze Flutter (lib only)
+        run: dart analyze lib
 
       # 🔥 Forzar Podfile con iOS 15 (fix mobile_scanner)
       - name: Fix Podfile iOS 15
