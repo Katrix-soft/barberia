@@ -1,33 +1,49 @@
 name: Upload to Appetize
+
 on:
   push:
-    branches: [ main ] # Se ejecuta al subir a la rama principal
-  workflow_dispatch:   # Permite ejecutarlo manualmente desde GitHub
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-ios:
-    runs-on: macos-latest # Requiere macOS para compilar para iOS
+    runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
+      - name: Flutter doctor
+        run: flutter doctor -v
+
       - name: Install dependencies
         run: flutter pub get
 
-      # Compila específicamente para el simulador (arquitectura x86_64/arm64)
+      - name: Setup iOS
+        run: |
+          cd ios
+          pod install
+          cd ..
+
       - name: Build iOS Simulator
         run: |
-          flutter build ios --simulator --no-codesign
+          flutter build ios --simulator --no-codesign -v
           cd build/ios/iphonesimulator
-          zip -r app.zip Runner.app # Appetize requiere el .app comprimido
+          zip -r app.zip Runner.app
 
-      # Sube el archivo comprimido usando la API de Appetize
       - name: Upload to Appetize
         run: |
+          curl -X POST https://api.appetize.io/v1/apps \
+            -H "X-API-KEY: ${{ secrets.APPETIZE_API_TOKEN }}" \
+            -F "file=@build/ios/iphonesimulator/app.zip" \
+            -F "platform=ios"
           curl -X POST https://api.appetize.io/v1/apps \
             -H "X-API-KEY: ${{ secrets.APPETIZE_API_TOKEN }}" \
             -F "file=@build/ios/iphonesimulator/app.zip" \
