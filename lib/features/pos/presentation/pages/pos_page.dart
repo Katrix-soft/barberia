@@ -19,6 +19,8 @@ import '../../../auth/presentation/bloc/user_bloc.dart';
 import '../../../auth/presentation/bloc/user_event.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../reports/presentation/pages/reports_page.dart';
+import '../../../reports/presentation/pages/cashbox_closing_page.dart';
+import '../../../reports/presentation/pages/payroll_page.dart';
 import '../../../booking/presentation/pages/booking_page.dart';
 import '../../../expenses/presentation/pages/expenses_page.dart';
 import '../../../expenses/presentation/bloc/expense_bloc.dart';
@@ -66,103 +68,9 @@ class _PosPageState extends State<PosPage> {
   }
 
   Future<void> _checkFirstLoginRequirements() async {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! Authenticated) return;
-    final user = authState.user;
-
-    final prefs = await SharedPreferences.getInstance();
-    final hasVerified =
-        prefs.getBool('first_login_verified_${user.username}') ?? false;
-
-    if (!hasVerified && mounted) {
-      final changed = await _showForcePasswordChangeDialog(user);
-      if (changed == true) {
-        await prefs.setBool('first_login_verified_${user.username}', true);
-      } else {
-        if (mounted) context.read<AuthBloc>().add(LogoutRequested());
-        return;
-      }
-    }
-
     if (mounted) {
       _checkBiometricOptIn();
     }
-  }
-
-  Future<bool?> _showForcePasswordChangeDialog(User user) {
-    final pwdController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.security, color: Color(0xFFC5A028)),
-              SizedBox(width: 8),
-              Text('Protege tu cuenta'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Este parece ser tu primer ingreso. Por razones de seguridad, debes cambiar tu contraseña temporal por una nueva para continuar.',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: pwdController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Nueva Contraseña',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                  ),
-                  validator: (value) => value == null || value.length < 4
-                      ? 'Mínimo 4 caracteres requeridos'
-                      : null,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Salir', style: TextStyle(color: Colors.red)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC5A028),
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  context.read<UserBloc>().add(
-                    SaveUser(user, pwdController.text),
-                  );
-                  Navigator.pop(ctx, true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Contraseña actualizada con éxito.'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Actualizar y Entrar'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _checkBiometricOptIn() async {
@@ -221,14 +129,32 @@ class _PosPageState extends State<PosPage> {
 
       await prefs.setBool('use_biometrics_asked', true);
       if (result == true) {
-        await prefs.setBool('use_biometrics', true);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Biometría activada con éxito.'),
-              backgroundColor: Colors.green,
-            ),
-          );
+        bool linked = true;
+        if (kIsWeb) {
+          final authState = context.read<AuthBloc>().state;
+          final userName = authState is Authenticated ? authState.user.name : 'Staff';
+          linked = await PwaInstaller.linkWebBiometrics(userName);
+        }
+
+        if (linked) {
+          await prefs.setBool('use_biometrics', true);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Biometría activada con éxito.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudo vincular la biometría.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
         }
       }
     } else {
@@ -426,33 +352,7 @@ class _PosPageState extends State<PosPage> {
                     ),
                   ),
                 ),
-                if (isAdmin)
-                  ListTile(
-                    leading: const Icon(Icons.hub_outlined, color: Color(0xFFC5A028)),
-                    title: const Text('CENTRAL DE CONTROL', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC5A028))),
-                    subtitle: const Text('Métricas y Salud del Sistema', style: TextStyle(fontSize: 10)),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AdminProfilePage()),
-                      );
-                      _loadData();
-                    },
-                  ),
-                if (isAdmin || isHeadBarber)
-                  ListTile(
-                    leading: const Icon(Icons.badge_outlined),
-                    title: const Text('Gestión de Personal'),
-                    onTap: () async {
-                      final nav = Navigator.of(context);
-                      nav.pop();
-                      await nav.push(
-                        MaterialPageRoute(builder: (_) => const StaffPage()),
-                      );
-                      _loadData();
-                    },
-                  ),
+                  // Eliminamos las rutas sueltas de Admin y Staff de la parte superior
                 if (authState is Authenticated && authState.user.role == UserRole.employee)
                   BlocBuilder<PosBloc, PosState>(
                     builder: (context, posState) {
@@ -563,21 +463,18 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                   },
                 ),
-                if (isAdmin || isHeadBarber)
-                  ListTile(
-                    leading: const Icon(Icons.inventory_2),
-                    title: const Text('Inventario'),
-                    onTap: () async {
-                      final nav = Navigator.of(context);
-                      nav.pop();
-                      await nav.push(
-                        MaterialPageRoute(
-                          builder: (_) => const InventoryPage(),
-                        ),
-                      );
-                      _loadData();
-                    },
-                  ),
+                ListTile(
+                  leading: const Icon(Icons.people),
+                  title: const Text('Clientes'),
+                  onTap: () async {
+                    final nav = Navigator.of(context);
+                    nav.pop();
+                    await nav.push(
+                      MaterialPageRoute(builder: (_) => const CustomersPage()),
+                    );
+                    _loadData();
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.payments_outlined),
                   title: const Text('Control de Gastos'),
@@ -591,6 +488,102 @@ class _PosPageState extends State<PosPage> {
                   },
                 ),
                 const Divider(),
+                if (isAdmin || isHeadBarber)
+                  ExpansionTile(
+                    leading: const Icon(Icons.admin_panel_settings_outlined, color: Color(0xFFC5A028)),
+                    title: const Text('Panel Administrativo', style: TextStyle(fontWeight: FontWeight.bold)),
+                    childrenPadding: const EdgeInsets.only(left: 16),
+                    collapsedIconColor: const Color(0xFFC5A028),
+                    iconColor: const Color(0xFFC5A028),
+                    children: [
+                      if (isAdmin)
+                        ListTile(
+                          leading: const Icon(Icons.hub_outlined, size: 20, color: Color(0xFFC5A028)),
+                          title: const Text('Central de Control', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC5A028))),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const AdminProfilePage()),
+                            );
+                            _loadData();
+                          },
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.badge_outlined, size: 20),
+                        title: const Text('Gestión de Personal'),
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                          await nav.push(
+                            MaterialPageRoute(builder: (_) => const StaffPage()),
+                          );
+                          _loadData();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.inventory_2, size: 20),
+                        title: const Text('Inventario'),
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                          await nav.push(
+                            MaterialPageRoute(builder: (_) => const InventoryPage()),
+                          );
+                          _loadData();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.bar_chart, size: 20),
+                        title: const Text('Reportes Generales'),
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                          await nav.push(
+                            MaterialPageRoute(builder: (_) => const ReportsPage()),
+                          );
+                          _loadData();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.point_of_sale, size: 20, color: Color(0xFFC5A028)),
+                        title: const Text('Cierre de Caja', style: TextStyle(color: Color(0xFFC5A028))),
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                          await nav.push(
+                            MaterialPageRoute(builder: (_) => const CashboxClosingPage()),
+                          );
+                          _loadData();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.account_balance_wallet, size: 20, color: Color(0xFFC5A028)),
+                        title: const Text('Liquidaciones', style: TextStyle(color: Color(0xFFC5A028))),
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                          await nav.push(
+                            MaterialPageRoute(builder: (_) => const PayrollPage()),
+                          );
+                          _loadData();
+                        },
+                      ),
+                    ],
+                  ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.help_outline_rounded, color: Color(0xFFC5A028)),
+                  title: const Text('Ayuda y Tutorial'),
+                  subtitle: const Text('¿Cómo usar el sistema?'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HelpPage()),
+                    );
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.settings_outlined),
                   title: const Text('Ajustes'),
@@ -604,57 +597,6 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                   },
                 ),
-                ListTile(
-                  leading: const Icon(Icons.people),
-                  title: const Text('Clientes'),
-                  onTap: () async {
-                    final nav = Navigator.of(context);
-                    nav.pop();
-                    await nav.push(
-                      MaterialPageRoute(builder: (_) => const CustomersPage()),
-                    );
-                    _loadData();
-                  },
-                ),
-                if (isAdmin || isHeadBarber)
-                  ListTile(
-                    leading: const Icon(Icons.bar_chart),
-                    title: const Text('Reportes'),
-                    onTap: () async {
-                    final nav = Navigator.of(context);
-                    nav.pop();
-                    await nav.push(
-                      MaterialPageRoute(builder: (_) => const ReportsPage()),
-                    );
-                    _loadData();
-                    },
-                  ),
-                ListTile(
-                  leading: const Icon(Icons.help_outline_rounded, color: Color(0xFFC5A028)),
-                  title: const Text('Ayuda y Tutorial'),
-                  subtitle: const Text('¿Cómo usar el sistema?'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HelpPage()),
-                    );
-                  },
-                ),
-                if (isAdmin || isHeadBarber)
-                  ListTile(
-                    leading: const Icon(Icons.badge),
-                    title: const Text('Personal'),
-                    subtitle: isHeadBarber ? const Text('Gestionar mi equipo') : null,
-                    onTap: () async {
-                      final nav = Navigator.of(context);
-                      nav.pop();
-                      await nav.push(
-                        MaterialPageRoute(builder: (_) => const StaffPage()),
-                      );
-                      _loadData();
-                    },
-                  ),
                 if (isAdmin) ...[
                   if (isAdmin)
                     Container(
@@ -711,8 +653,8 @@ class _PosPageState extends State<PosPage> {
                         if (mounted) Navigator.pop(context);
                       },
                     ),
-                  if (!isAdmin) const Divider(),
-                  if (!isAdmin)
+                  if (isAdmin) const Divider(),
+                  if (isAdmin)
                     ListTile(
                       leading: const Icon(Icons.refresh, color: Colors.red),
                       title: const Text(
@@ -2130,95 +2072,6 @@ class _PosPageState extends State<PosPage> {
               'La venta se ha procesado correctamente.',
               textAlign: TextAlign.center,
             ),
-            BlocBuilder<AuthBloc, AuthState>(
-              builder: (context, authState) {
-                if (authState is! Authenticated) return const SizedBox.shrink();
-                
-                final userName = authState.user.name.trim().toLowerCase();
-                double grossCommission = 0;
-                double pendingBalance = 0;
-                
-                // Calculate based on the same logic as the Drawer for consistency
-                for (var entry in state.barberServiceSales.entries) {
-                  if (entry.key.toLowerCase() == userName) {
-                    grossCommission = entry.value * 0.5;
-                    break;
-                  }
-                }
-
-                for (var entry in state.barberPendingBalance.entries) {
-                  if (entry.key.toLowerCase() == userName) {
-                    pendingBalance = entry.value;
-                    break;
-                  }
-                }
-
-                final netPay = grossCommission - pendingBalance;
-                final bool isCovered = netPay >= 0;
-                final bool isNegative = netPay < 0;
-                final bool showWarning = isCovered && netPay <= 15000; // Threshold: price of Corte + Barba
-
-                if (pendingBalance <= 0) return const SizedBox.shrink();
-
-                return Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isNegative 
-                            ? Colors.red.withOpacity(0.1)
-                            : (showWarning ? Colors.orange.withOpacity(0.1) : (isCovered ? Colors.green.withOpacity(0.1) : const Color(0xFFC5A028).withOpacity(0.1))),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isNegative 
-                              ? Colors.red.withOpacity(0.3)
-                              : (showWarning ? Colors.orange.withOpacity(0.3) : (isCovered ? Colors.green.withOpacity(0.3) : const Color(0xFFC5A028).withOpacity(0.2))),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            isNegative ? '¡ATENCIÓN! 🚨' : (showWarning ? '¡Cuidado! ⚠️' : (isCovered ? '¡Todo cubierto! ✅' : '¡Buena venta! 💰')),
-                            style: TextStyle(
-                              color: isNegative ? Colors.red : (showWarning ? Colors.orange : (isCovered ? Colors.green : const Color(0xFFC5A028))),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isNegative
-                                ? "Has consumido más de lo que ganaste hoy. Tu saldo es negativo (${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(netPay)}). Tendrás que cubrirlo."
-                                : (isCovered 
-                                    ? (showWarning 
-                                        ? "Estás consumiendo mucho y te va a quedar muy poco de paga al final del día (${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(netPay)})."
-                                        : "Ya has cubierto tus gastos de hoy. ¡Todo lo que sumes ahora es ganancia neta!")
-                                    : 'Te faltan ${NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(-netPay)} para cubrir tus gastos pendientes.'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isNegative ? Colors.red.shade200 : (showWarning ? Colors.orange.withOpacity(0.9) : Colors.white.withOpacity(0.9)),
-                            ),
-                          ),
-                          if (!isCovered && state.pendingExpenseDescription != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              '(Próximo pago: ${state.pendingExpenseDescription})',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -2226,26 +2079,22 @@ class _PosPageState extends State<PosPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (state.lastConfirmedCustomer != null &&
-                  state.lastConfirmedCustomer?.phone != null &&
-                  state.lastConfirmedCustomer!.phone!.isNotEmpty)
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (state.lastConfirmedCustomer != null &&
-                        state.lastConfirmedSale != null) {
-                      _sendWhatsAppReceipt(
-                        state.lastConfirmedCustomer!,
-                        state.lastConfirmedSale!,
-                      );
-                    }
-                  },
-                  icon: const FaIcon(FontAwesomeIcons.whatsapp),
-                  label: const Text('Enviar Ticket WhatsApp'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                  ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (state.lastConfirmedSale != null) {
+                    _sendWhatsAppReceipt(
+                      state.lastConfirmedCustomer,
+                      state.lastConfirmedSale!,
+                    );
+                  }
+                },
+                icon: const FaIcon(FontAwesomeIcons.whatsapp),
+                label: const Text('Enviar Ticket WhatsApp'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
                 ),
+              ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -2258,10 +2107,11 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
-  Future<void> _sendWhatsAppReceipt(Customer customer, Sale sale) async {
+  Future<void> _sendWhatsAppReceipt(Customer? customer, Sale sale) async {
     final StringBuffer buffer = StringBuffer();
     buffer.writeln('✂️ *Ticket Digital - Barber POS* ✂️');
-    buffer.writeln('Hola *${customer.name}*, gracias por tu visita.');
+    final customerName = customer?.name ?? 'Cliente';
+    buffer.writeln('Hola *$customerName*, gracias por tu visita.');
     buffer.writeln('');
     buffer.writeln('*Detalle:*');
     for (var item in sale.items) {
@@ -2276,10 +2126,17 @@ class _PosPageState extends State<PosPage> {
     buffer.writeln('¡Te esperamos pronto! 💈');
 
     final String message = Uri.encodeComponent(buffer.toString());
-    final String phone = (customer.phone ?? '').replaceAll(RegExp(r'\D'), '');
-    // Ensure phone has at least a country code or handle common cases
-    final String targetPhone = phone.startsWith('54') ? phone : '54$phone';
-    final Uri url = Uri.parse('https://wa.me/$targetPhone?text=$message');
+    
+    // Si tenemos cliente con teléfono, lo mandamos directo. Si no, abrimos WhatsApp genérico.
+    Uri url;
+    if (customer != null && customer.phone != null && customer.phone!.isNotEmpty) {
+      final String phone = customer.phone!.replaceAll(RegExp(r'\D'), '');
+      final String targetPhone = phone.startsWith('54') ? phone : '54$phone';
+      url = Uri.parse('https://wa.me/$targetPhone?text=$message');
+    } else {
+      url = Uri.parse('https://wa.me/?text=$message');
+    }
+
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }

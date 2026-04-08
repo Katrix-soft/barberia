@@ -1,9 +1,9 @@
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
-import 'dart:io' show Platform;
 import '../utils/version_info.dart';
+
+import 'database_factory_io.dart' if (dart.library.js_interop) 'database_factory_web.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -24,7 +24,7 @@ class DatabaseHelper {
     Database db;
     if (kIsWeb) {
       debugPrint('[DB] Platform: Web');
-      databaseFactory = databaseFactoryFfiWeb;
+      databaseFactory = getWebDatabaseFactory();
       db = await openDatabase(
         'pos_barber.db',
         version: VersionInfo.dbVersion,
@@ -32,12 +32,16 @@ class DatabaseHelper {
         onUpgrade: _onUpgrade,
       );
     } else {
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        debugPrint('[DB] Platform: Desktop (${Platform.operatingSystem})');
+      bool isDesktop = defaultTargetPlatform == TargetPlatform.windows || 
+                       defaultTargetPlatform == TargetPlatform.linux || 
+                       defaultTargetPlatform == TargetPlatform.macOS;
+                       
+      if (isDesktop) {
+        debugPrint('[DB] Platform: Desktop');
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       } else {
-        debugPrint('[DB] Platform: Mobile (${Platform.isAndroid ? 'Android' : 'iOS'})');
+        debugPrint('[DB] Platform: Mobile');
       }
 
       String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
@@ -294,6 +298,35 @@ class DatabaseHelper {
       } catch (e) { debugPrint('[DB] v27: paid_at ya existe o error: $e'); }
       debugPrint('[DB] Migration v27: campos de pago agregados a appointments.');
     }
+    if (oldVersion < 28) {
+      try {
+        await db.execute('''
+          CREATE TABLE cashbox_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            opened_at TEXT,
+            closed_at TEXT NOT NULL,
+            closed_by INTEGER,
+            closed_by_name TEXT,
+            expected_cash REAL NOT NULL,
+            actual_cash REAL NOT NULL,
+            expected_mp REAL NOT NULL,
+            actual_mp REAL NOT NULL,
+            discrepancy REAL NOT NULL,
+            notes TEXT,
+            is_synced INTEGER DEFAULT 0
+          )
+        ''');
+      } catch (e) {
+        debugPrint('[DB] v28: cashbox_sessions ya existe o error: $e');
+      }
+    }
+    if (oldVersion < 29) {
+      try {
+        await db.execute('ALTER TABLE sales ADD COLUMN is_liquidated INTEGER DEFAULT 0');
+      } catch (e) {
+        debugPrint('[DB] v29: is_liquidated ya existe o error: $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -346,6 +379,7 @@ class DatabaseHelper {
         payment_method TEXT NOT NULL,
         user_name TEXT NOT NULL,
         is_synced INTEGER DEFAULT 0,
+        is_liquidated INTEGER DEFAULT 0,
         FOREIGN KEY (customer_id) REFERENCES customers (id)
       )
     ''');
@@ -494,6 +528,25 @@ class DatabaseHelper {
         )
       ''');
     }
+
+    if (version >= 28) {
+      await db.execute('''
+        CREATE TABLE cashbox_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          opened_at TEXT,
+          closed_at TEXT NOT NULL,
+          closed_by INTEGER,
+          closed_by_name TEXT,
+          expected_cash REAL NOT NULL,
+          actual_cash REAL NOT NULL,
+          expected_mp REAL NOT NULL,
+          actual_mp REAL NOT NULL,
+          discrepancy REAL NOT NULL,
+          notes TEXT,
+          is_synced INTEGER DEFAULT 0
+        )
+      ''');
+    }
   }
 
   Future<Map<String, dynamic>?> getUserByEmailOrUsername(String identifier) async {
@@ -507,21 +560,42 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<void> resetDatabase() async {
-    // Close existing database if any
-    if (_database != null) {
-      await _database!.close();
-      _database = null;
+  Future<void> clearAllData() async {
+    final db = await database;
+    try {
+      await db.execute('DELETE FROM sale_items');
+      await db.execute('DELETE FROM sales');
+      await db.execute('DELETE FROM expenses');
+      await db.execute('DELETE FROM payroll');
+      await db.execute('DELETE FROM appointments');
+      await db.execute('DELETE FROM cashbox_sessions');
+      debugPrint('[DB] All transactional data cleared via manual DELETE.');
+    } catch (e) {
+      debugPrint('[DB] Error clearing data manually: $e');
     }
+  }
 
-    if (kIsWeb) {
-      await databaseFactoryFfiWeb.deleteDatabase('pos_barber.db');
-    } else {
-      String dbPath = join(await getDatabasesPath(), 'pos_barber.db');
-      await databaseFactory.deleteDatabase(dbPath);
+  Future<void> resetDatabase() async {
+    final db = await database;
+    try {
+      // 1. Borrar todas las transacciones operativas
+      await db.execute('DELETE FROM sale_items');
+      await db.execute('DELETE FROM sales');
+      await db.execute('DELETE FROM expenses');
+      await db.execute('DELETE FROM payroll');
+      await db.execute('DELETE FROM appointments');
+      await db.execute('DELETE FROM cashbox_sessions');
+      await db.execute('DELETE FROM customers');
+
+      // 2. Borrar todos los usuarios EXCEPTO Franco, Nacho, Enzo, Mauro
+      await db.execute(
+        "DELETE FROM users WHERE LOWER(username) NOT IN ('franco', 'nacho', 'enzo', 'mauro')"
+      );
+
+      debugPrint('[DB] Database targeted reset completed successfully.');
+    } catch (e) {
+      debugPrint('[DB] Error during targeted reset: $e');
+      throw e;
     }
-    
-    // Re-initialize
-    await database;
   }
 }

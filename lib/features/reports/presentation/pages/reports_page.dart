@@ -21,6 +21,7 @@ class ReportsPage extends StatefulWidget {
 
 class _ReportsPageState extends State<ReportsPage> {
   late Future<Map<String, dynamic>> _futureData;
+  String _selectedFilter = 'Histórico';
 
   @override
   void initState() {
@@ -114,13 +115,37 @@ class _ReportsPageState extends State<ReportsPage> {
             filteredExpenses = allExpenses.where((e) => e.userName == authState.user.name).toList();
           }
 
-          if (filteredSales.isEmpty && filteredExpenses.isEmpty) {
-            return const Center(child: Text('No hay datos registrados aún para tu usuario.'));
+          // Filtro por fecha seleccionado
+          final now = DateTime.now();
+          DateTime startDate = DateTime(2000);
+          if (_selectedFilter == 'Hoy') {
+            startDate = DateTime(now.year, now.month, now.day);
+          } else if (_selectedFilter == 'Esta Semana') {
+            startDate = now.subtract(Duration(days: now.weekday - 1));
+            startDate = DateTime(startDate.year, startDate.month, startDate.day);
+          } else if (_selectedFilter == 'Este Mes') {
+            startDate = DateTime(now.year, now.month, 1);
+          }
+
+          filteredSales = filteredSales.where((s) => s.date.isAfter(startDate.subtract(const Duration(seconds: 1)))).toList();
+          filteredExpenses = filteredExpenses.where((e) => e.dueDate.isAfter(startDate.subtract(const Duration(seconds: 1)))).toList();
+
+          if (filteredSales.isEmpty && filteredExpenses.isEmpty && _selectedFilter != 'Hoy') {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildFilterDropdown(),
+                  const SizedBox(height: 20),
+                  const Text('No hay movimientos en este período.'),
+                ],
+              )
+            );
           }
 
           // Cálculos Financieros
           final today = DateTime.now();
-          final todaySales = filteredSales.where((s) => _isSameDay(s.date, today)).toList();
+          final todaySales = allSales.where((s) => _isSameDay(s.date, today)).toList(); // Always show today's status
           final todayRevenue = todaySales.fold<double>(0, (sum, s) => sum + s.total);
           
           final totalSalesRevenue = filteredSales.fold<double>(0, (sum, s) => sum + s.total);
@@ -133,12 +158,22 @@ class _ReportsPageState extends State<ReportsPage> {
               _buildSummaryHeader(totalSalesRevenue, totalExpenses, netProfit),
               const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: Text('ESTADO DE HOY', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                child: Text('ESTADO CORTOCIRCUITO (HOY REAL)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               _buildTodayCards(todaySales.length, todayRevenue),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('FILTRAR REPORTES', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                    _buildFilterDropdown(),
+                  ],
+                ),
+              ),
               const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('INGRESOS ÚLTIMOS 7 DÍAS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Text('INGRESOS (GRAFICO SEMANAL)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               _buildWeeklyChart(filteredSales),
               const Padding(
@@ -160,6 +195,38 @@ class _ReportsPageState extends State<ReportsPage> {
 
   bool _isSameDay(DateTime d1, DateTime d2) {
     return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+  }
+
+  Widget _buildFilterDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC5A028).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedFilter,
+          icon: const Icon(Icons.calendar_month, color: Color(0xFFC5A028), size: 16),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC5A028)),
+          dropdownColor: Colors.black87,
+          items: ['Hoy', 'Esta Semana', 'Este Mes', 'Histórico'].map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(value),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedFilter = newValue;
+              });
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildSummaryHeader(double sales, double expenses, double net) {

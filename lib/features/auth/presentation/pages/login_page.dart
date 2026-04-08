@@ -391,10 +391,37 @@ class _LoginScreenState extends State<LoginScreen>
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
             onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('use_biometrics', true);
-              await prefs.setBool('use_biometrics_asked', true);
-              if (context.mounted) Navigator.pop(context);
+              bool linked = true; // Mobile defaults to true as it uses local_auth
+              
+              if (kIsWeb) {
+                // For Web, we must perform the standard WebAuthn 'Link' (Registration)
+                linked = await PwaInstaller.linkWebBiometrics(_emailController.text);
+              }
+
+              if (linked) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('use_biometrics', true);
+                await prefs.setBool('use_biometrics_asked', true);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Acceso biométrico vinculado con éxito'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } else {
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No se pudo vincular la biometría en este dispositivo'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('ACTIVAR', style: TextStyle(color: Colors.black)),
           ),

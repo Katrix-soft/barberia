@@ -1,25 +1,39 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MercadoPagoService {
-  String get _accessToken => dotenv.env['MP_ACCESS_TOKEN'] ?? '';
-  String get _userId => dotenv.env['MP_USER_ID'] ?? '';
-  String get _externalPosId => dotenv.env['MP_EXTERNAL_POS_ID'] ?? '';
-  
-  // Exponer el QR estático desde variables
+  /// Cambiá _devHost por tu IP local cuando probás en Android/iOS físico.
+  /// En prod apunta a tu dominio real.
+  static const _devHost = 'localhost:8090'; // ← TU IP LOCAL
+  static const _prodHost = 'tudominio.com';     // ← TU DOMINIO EN PROD
+  static const _isDev = true;                   // ← toggle dev/prod
+
+  static String get _backendBase {
+    if (kIsWeb) {
+      // En dev apuntamos directo al backend (CORS ya está habilitado)
+      if (_isDev) return 'http://192.168.1.9:8090/mp';
+      // En prod usamos ruta relativa (mismo servidor)
+      return '/mp';
+    }
+    final host = _isDev ? _devHost : _prodHost;
+    final scheme = _isDev ? 'http' : 'https';
+    return '$scheme://$host/mp';
+  }
+
+  // El QR es estático — lo mostrás desde el panel de MP
+  // Si necesitás que sea dinámico, pedíselo al backend aparte
   String get qrImageUrl => dotenv.env['MP_QR_IMAGE'] ?? '';
 
-  Map<String, String> get _headers => {
-        'Authorization': 'Bearer $_accessToken',
-        'Content-Type': 'application/json',
-      };
+  Map<String, String> get _headers => {'Content-Type': 'application/json'};
 
-  /// Crea una nueva orden en el código QR dinámico/estático (Instore API)
-  Future<bool> crearOrder(String externalReference, double monto, String descripcion) async {
-    final url = Uri.parse(
-        'https://api.mercadopago.com/instore/orders/qr/seller/collectors/$_userId/pos/$_externalPosId/qrs');
-
+  Future<bool> crearOrder(
+    String externalReference,
+    double monto,
+    String descripcion,
+  ) async {
+    final url = Uri.parse('$_backendBase/order');
     final body = json.encode({
       "external_reference": externalReference,
       "title": "Turno BM Barber",
@@ -34,76 +48,66 @@ class MercadoPagoService {
           "unit_price": monto,
           "quantity": 1,
           "unit_measure": "unit",
-          "total_amount": monto
+          "total_amount": monto,
         }
-      ]
+      ],
     });
 
     try {
-      final response = await http.put(url, headers: _headers, body: body);
-      // MP devuelve 204 No Content cuando se crea exitosamente la orden en el POS
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return true;
-      } else {
-        print('[MP Service] Error al crear order: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+      final response = await http
+          .put(url, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode >= 200 && response.statusCode < 300) return true;
+      debugPrint('[MP] Error crearOrder: ${response.statusCode} - ${response.body}');
+      return false;
     } catch (e) {
-      print('[MP Service] Excepción al crear order: $e');
+      debugPrint('[MP] Excepción crearOrder: $e');
       return false;
     }
   }
 
-  /// Cancela la orden actual en la caja
   Future<bool> cancelarOrder() async {
-    final url = Uri.parse(
-        'https://api.mercadopago.com/instore/orders/qr/seller/collectors/$_userId/pos/$_externalPosId/qrs');
-
     try {
-      final response = await http.delete(url, headers: _headers);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return true;
-      } else {
-        print('[MP Service] Error al cancelar order: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+      final response = await http
+          .delete(Uri.parse('$_backendBase/order'), headers: _headers)
+          .timeout(const Duration(seconds: 10));
+      return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      print('[MP Service] Excepción al cancelar order: $e');
+      debugPrint('[MP] Excepción cancelarOrder: $e');
       return false;
     }
   }
 
-  /// Revisa el estado de un merchant_order usando la external_reference
   Future<String> obtenerEstadoOrden(String externalReference) async {
-    final url = Uri.parse(
-        'https://api.mercadopago.com/merchant_orders?external_reference=$externalReference');
-
     try {
-      final response = await http.get(url, headers: _headers);
+      final response = await http
+          .get(
+            Uri.parse('$_backendBase/order/status?ref=$externalReference'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final elements = data['elements'] as List?;
         if (elements != null && elements.isNotEmpty) {
-          // Tomar el elemento más reciente con status "closed"
-          final sortedElements = elements.toList()
+          final sorted = elements.toList()
             ..sort((a, b) => (b['id'] ?? 0).compareTo(a['id'] ?? 0));
-            
-          final order = sortedElements.first;
-          final status = order['status']; 
-          
+          final order = sorted.first;
+          final status = order['status'] as String?;
           if (status == 'closed') {
             final payments = order['payments'] as List?;
-            final isApproved = payments != null && payments.any((p) => p['status'] == 'approved');
-            if (isApproved) {
-              return 'closed_approved';
-            }
+            final approved =
+                payments?.any((p) => p['status'] == 'approved') ?? false;
+            if (approved) return 'closed_approved';
           }
-          return status; // ej: "opened", "closed" (but not approved)
+          return status ?? 'pending';
         }
       }
-      return 'pending'; // no se encontró merchant_order aún
+      return 'pending';
     } catch (e) {
-      print('[MP Service] Excepción al consultar order: $e');
+      debugPrint('[MP] Excepción obtenerEstado: $e');
       return 'error';
     }
   }

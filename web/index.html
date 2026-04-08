@@ -342,21 +342,42 @@
       return false;
     };
 
-    window.authenticateWebBiometrics = async () => {
+    // --- WebAuthn Biometrics Refactor (Inspired by metrics-docker) ---
+    
+    // Helper: Uint8Array -> Base64
+    function uint8ArrayToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    }
+
+    // Helper: Base64 -> Uint8Array
+    function base64ToUint8Array(base64) {
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    window.linkWebBiometrics = async (userName) => {
       try {
         if (typeof window.PublicKeyCredential === 'undefined') return false;
-        
-        // Simple WebAuthn Local Challenge (User Presence Verification)
+
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
-        
+
         const publicKeyCredentialCreationOptions = {
           challenge: challenge,
           rp: { name: "BM BARBER", id: window.location.hostname },
           user: {
-            id: Uint8Array.from("USER_ID", c => c.charCodeAt(0)),
-            name: "nacho@barberia.com",
-            displayName: "Nacho"
+            id: Uint8Array.from("USER_ID_" + userName, c => c.charCodeAt(0)),
+            name: userName || "usuario@barberia.com",
+            displayName: userName || "Usuario Barber"
           },
           pubKeyCredParams: [{ alg: -7, type: "public-key" }],
           authenticatorSelection: { 
@@ -370,21 +391,68 @@
         const credential = await navigator.credentials.create({
           publicKey: publicKeyCredentialCreationOptions
         });
-        
-        console.log('[PWA] Web Biometrics Auth success');
-        return !!credential;
+
+        if (credential) {
+          const credId = uint8ArrayToBase64(credential.rawId);
+          localStorage.setItem('katrix_bio_cred_id', credId);
+          localStorage.setItem('katrix_bio_linked', 'true');
+          console.log('[PWA] Biometrics linked successfully');
+          return true;
+        }
+        return false;
       } catch (e) {
-        console.warn('[PWA] Web Biometrics Auth failed or cancelled:', e);
+        console.warn('[PWA] Link Biometrics failed:', e);
+        return false;
+      }
+    };
+
+    window.authenticateWebBiometrics = async () => {
+      try {
+        if (typeof window.PublicKeyCredential === 'undefined') return false;
+
+        const storedCredId = localStorage.getItem('katrix_bio_cred_id');
+        if (!storedCredId) {
+          console.warn('[PWA] No biometric credential linked');
+          return false;
+        }
+
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const publicKeyCredentialRequestOptions = {
+          challenge: challenge,
+          allowCredentials: [{
+            id: base64ToUint8Array(storedCredId),
+            type: 'public-key'
+          }],
+          userVerification: "required",
+          timeout: 60000
+        };
+
+        const assertion = await navigator.credentials.get({
+          publicKey: publicKeyCredentialRequestOptions
+        });
+
+        if (assertion) {
+          console.log('[PWA] Biometrics auth success');
+          return true;
+        }
+        return false;
+      } catch (e) {
+        console.warn('[PWA] Biometric auth failed or cancelled:', e);
         return false;
       }
     };
 
     window.checkWebBiometrics = async () => {
       try {
+        // En Web, si no hay credencial vinculada, no ofrecemos el login por biometría aún
+        const isLinked = localStorage.getItem('katrix_bio_linked') === 'true';
+        
         if (typeof window.PublicKeyCredential !== 'undefined' && 
             typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
           const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          console.log('[PWA] Biometrics support check:', available);
+          console.log('[PWA] Biometrics support:', available, 'Linked:', isLinked);
           return !!available;
         }
       } catch (e) {

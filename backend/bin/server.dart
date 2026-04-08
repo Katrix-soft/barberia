@@ -3,16 +3,21 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'handlers/webhook_handler.dart';
+import 'handlers/mp_handler.dart';
+import 'package:dotenv/dotenv.dart';
 
 void main() async {
-  final port = int.parse(Platform.environment['PORT'] ?? '8090');
-  final dbPath = Platform.environment['DB_PATH'] ?? '/data/pos_barber.db';
+  // Cargar variables de entorno desde el archivo .env en la raíz
+  final env = DotEnv(includePlatformEnvironment: true)..load(['../.env']);
+  final port = int.parse(env['PORT'] ?? '8090');
+  final dbPath = env['DB_PATH'] ?? '/data/pos_barber.db';
 
   print('[Server] BM Barber Backend iniciando...');
   print('[Server] Puerto: $port');
   print('[Server] DB Path: $dbPath');
 
   final webhookHandler = WebhookHandler(dbPath: dbPath);
+  final mpHandler = MpHandler(env);
 
   final router = Router();
 
@@ -24,6 +29,11 @@ void main() async {
   // Mercado Pago webhook
   router.post('/webhook/mercadopago', webhookHandler.handle);
 
+  // Mercado Pago proxy
+  router.put('/mp/order', mpHandler.crearOrder);
+  router.delete('/mp/order', mpHandler.cancelarOrder);
+  router.get('/mp/order/status', mpHandler.obtenerEstado);
+
   final handler = Pipeline()
       .addMiddleware(logRequests())
       .addMiddleware(_corsMiddleware())
@@ -33,14 +43,14 @@ void main() async {
   print('[Server] Escuchando en http://${server.address.host}:${server.port}');
 }
 
-/// Middleware CORS básico — Mercado Pago no necesita CORS pero es buena práctica.
+/// Middleware CORS — Permite peticiones desde el frontend (Web)
 Middleware _corsMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
       if (request.method == 'OPTIONS') {
         return Response.ok('', headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         });
       }
