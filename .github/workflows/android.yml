@@ -1,0 +1,50 @@
+name: Upload Android to Appetize
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 📦 Repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ☕ Java (necesario para Android)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 🐦 Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # 📦 Dependencias
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 🔥 Clean
+      - name: Clean
+        run: |
+          flutter clean
+          flutter pub get
+
+      # 🔨 Build APK (IMPORTANTE usar APK, no AAB para Appetize)
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 📦 Subir a Appetize
+      - name: Upload to Appetize
+        run: |
+          curl -X POST https://api.appetize.io/v1/apps \
+            -H "X-API-KEY: ${{ secrets.APPETIZE_API_TOKEN }}" \
+            -F "file=@build/app/outputs/flutter-apk/app-release.apk" \
+            -F "platform=android"
