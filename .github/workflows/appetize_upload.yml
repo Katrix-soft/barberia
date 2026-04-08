@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # 📦 Checkout del repo
+      # 📦 Clonar repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -23,30 +23,36 @@ jobs:
         with:
           channel: stable
 
-      # 🔍 Ver estado del entorno
+      # 🔍 Debug entorno
       - name: Flutter doctor
         run: flutter doctor -v
 
-      # 📦 Dependencias Flutter
+      # 📦 Dependencias
       - name: Install dependencies
         run: flutter pub get
 
-      # 🍎 Instalar CocoaPods (clave en CI)
+      # 🔧 Fix iOS deployment target (para mobile_scanner)
+      - name: Fix iOS deployment target
+        run: |
+          sed -i '' 's/platform :ios, .*/platform :ios, '\''15.0'\''/' ios/Podfile || echo "platform already set"
+      
+      # 🍎 Instalar CocoaPods
       - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
           pod repo update
 
-      # ⚙️ Setup iOS (pods)
+      # ⚙️ Instalar pods
       - name: Setup iOS
         run: |
           cd ios
           pod install
           cd ..
 
-      # 🔨 Build para simulador (con logs completos)
+      # 🔨 Build iOS (con logs completos)
       - name: Build iOS Simulator
         run: |
+          flutter clean
           flutter build ios --simulator --no-codesign -v
           cd build/ios/iphonesimulator
           zip -r app.zip Runner.app
