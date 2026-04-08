@@ -5,41 +5,35 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build-ios:
     runs-on: macos-latest
 
     steps:
-      # 📦 Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🐦 Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 🔍 Debug
-      - name: Flutter doctor
-        run: flutter doctor -v
+      # 🧹 LIMPIEZA TOTAL
+      - name: Clean project
+        run: |
+          flutter clean
+          rm -rf ios/Pods ios/Podfile.lock ios/.symlinks ios/Flutter/Flutter.framework
 
-      # 🧹 CLEAN PRIMERO (CLAVE)
-      - name: Flutter clean
-        run: flutter clean
-
-      # 📦 Dependencias (esto genera Generated.xcconfig)
+      # 📦 Dependencias
       - name: Install dependencies
         run: flutter pub get
 
-      # 🔥 Fix Podfile (iOS 13)
-      - name: Fix Podfile
+      # 🔥 FORZAR iOS 15 en TODOS lados
+      - name: Fix iOS config
         run: |
+          # Podfile
           cat > ios/Podfile << 'EOF'
-          platform :ios, '13.0'
+          platform :ios, '15.0'
 
           ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -52,7 +46,7 @@ jobs:
           def flutter_root
             generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
             unless File.exist?(generated_xcode_build_settings_path)
-              raise "#{generated_xcode_build_settings_path} must exist. Run flutter pub get first"
+              raise "#{generated_xcode_build_settings_path} must exist"
             end
 
             File.foreach(generated_xcode_build_settings_path) do |line|
@@ -69,7 +63,6 @@ jobs:
           target 'Runner' do
             use_frameworks! :linkage => :static
             use_modular_headers!
-
             flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
           end
 
@@ -77,11 +70,14 @@ jobs:
             installer.pods_project.targets.each do |target|
               flutter_additional_ios_build_settings(target)
               target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
               end
             end
           end
           EOF
+
+          # 🔥 TAMBIÉN el plist (CLAVE)
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" ios/Flutter/AppFrameworkInfo.plist || true
 
       # 🍎 CocoaPods
       - name: Install CocoaPods
@@ -89,29 +85,24 @@ jobs:
           sudo gem install cocoapods
           pod repo update
 
-      # 🧹 Limpiar SOLO pods (NO flutter clean otra vez)
-      - name: Clean iOS build
-        run: |
-          rm -rf ios/Pods ios/Podfile.lock
-
-      # ⚙️ Instalar Pods
+      # ⚙️ Pods
       - name: Install Pods
         run: |
           cd ios
-          pod install
+          pod install --repo-update
           cd ..
 
-      # 🔨 Build iOS Simulator
+      # 🔨 Build
       - name: Build iOS Simulator
         run: flutter build ios --simulator --no-codesign
 
-      # 📦 Zip app
+      # 📦 Zip
       - name: Zip app
         run: |
           cd build/ios/iphonesimulator
           zip -r app.zip Runner.app
 
-      # 🚀 Upload a Appetize
+      # 🚀 Upload
       - name: Upload to Appetize
         run: |
           curl -X POST https://api.appetize.io/v1/apps \
