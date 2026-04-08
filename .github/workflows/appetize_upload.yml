@@ -11,30 +11,25 @@ jobs:
 
     steps:
       # 📦 Repo
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       # 🐦 Flutter
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 📦 Dependencias Flutter
-      - name: Pub get
-        run: flutter pub get
+      # 📦 Dependencias
+      - run: flutter pub get
 
-      # 🔥 IMPORTANTE: generar archivos iOS base
-      - name: Precache iOS
-        run: flutter precache --ios
+      # 🔥 Generar configs iOS correctamente
+      - run: flutter precache --ios
 
-      # 🔥 LIMPIAR TODO
-      - name: Clean build
-        run: |
+      # 🔥 Clean total
+      - run: |
           flutter clean
           flutter pub get
 
-      # 🔥 Fix Podfile (iOS 16 para mobile_scanner)
+      # 🔥 Podfile CORRECTO (con FLUTTER_ROOT)
       - name: Fix Podfile
         run: |
           cat > ios/Podfile << 'EOF'
@@ -48,7 +43,20 @@ jobs:
             'Release' => :release,
           }
 
-          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), Dir.pwd)
+          def flutter_root
+            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+            unless File.exist?(generated_xcode_build_settings_path)
+              raise "#{generated_xcode_build_settings_path} must exist. Run flutter pub get first"
+            end
+
+            File.foreach(generated_xcode_build_settings_path) do |line|
+              matches = line.match(/FLUTTER_ROOT\=(.*)/)
+              return matches[1].strip if matches
+            end
+            raise "FLUTTER_ROOT not found"
+          end
+
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
           flutter_ios_podfile_setup
 
@@ -69,19 +77,19 @@ jobs:
           end
           EOF
 
-      # 🍎 CocoaPods limpio
-      - name: Install Pods clean
+      # 🍎 Pods limpios
+      - name: Install Pods
         run: |
           cd ios
           rm -rf Pods Podfile.lock
           pod install --repo-update
           cd ..
 
-      # 🔨 BUILD (esto ahora sí funciona)
+      # 🔨 Build real
       - name: Build iOS
         run: flutter build ios --simulator --no-codesign
 
-      # 📦 ZIP
+      # 📦 Zip
       - name: Zip app
         run: |
           cd build/ios/iphonesimulator
