@@ -1,4 +1,4 @@
-# Posbarber Luxury 💈
+# Posbarber 💈
 
 Posbarber es un sistema de Punto de Venta (POS) premium, diseñado específicamente para barberías y estéticas modernas. Desarrollado en Flutter, ofrece un diseño sofisticado ("Luxury"), velocidad impecable y funcionamiento multiplataforma (Web PWA, Windows, Linux, Android, iOS).
 
