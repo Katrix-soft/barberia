@@ -68,19 +68,18 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        final useBiometrics = prefs.getBool('use_biometrics') ?? false;
+
         setState(() {
-          _isBiometricSupported = shouldOfferBiometrics;
+          // Solo mostramos el botón si el dispositivo es compatible Y el usuario ya lo habilitó
+          _isBiometricSupported = shouldOfferBiometrics && useBiometrics;
         });
 
-        if (shouldOfferBiometrics) {
-          final prefs = await SharedPreferences.getInstance();
-          final useBiometrics = prefs.getBool('use_biometrics') ?? false;
-          
-          if (useBiometrics) {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) _authenticateWithBiometrics();
-            });
-          }
+        if (shouldOfferBiometrics && useBiometrics) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) _authenticateWithBiometrics();
+          });
         }
       }
     } catch (e) {
@@ -170,12 +169,7 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             );
           } else if (state is Authenticated) {
-            final prefs = await SharedPreferences.getInstance();
-            final hasAsked = prefs.getBool('use_biometrics_asked') ?? false;
-            
-            if (!hasAsked && _isBiometricSupported) {
-               if (mounted) _showEnableBiometricDialog(context);
-            }
+            // El diálogo de activación se maneja ahora solo en PosPage para evitar duplicados.
           }
         },
         child: Stack(
@@ -372,61 +366,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _showEnableBiometricDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text('¿Activar acceso biométrico?', style: TextStyle(color: Color(0xFFC5A028))),
-        content: const Text('Podrás iniciar sesión más rápido usando tu huella o Face ID.', style: TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('use_biometrics_asked', true);
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('AHORA NO', style: TextStyle(color: Colors.white38)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
-            onPressed: () async {
-              bool linked = true; // Mobile defaults to true as it uses local_auth
-              
-              if (kIsWeb) {
-                // For Web, we must perform the standard WebAuthn 'Link' (Registration)
-                linked = await PwaInstaller.linkWebBiometrics(_emailController.text);
-              }
-
-              if (linked) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('use_biometrics', true);
-                await prefs.setBool('use_biometrics_asked', true);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Acceso biométrico vinculado con éxito'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } else {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No se pudo vincular la biometría en este dispositivo'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('ACTIVAR', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
 }
