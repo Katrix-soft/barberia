@@ -27,11 +27,15 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      # 📦 Dependencias
+      # 🧹 CLEAN PRIMERO (CLAVE)
+      - name: Flutter clean
+        run: flutter clean
+
+      # 📦 Dependencias (esto genera Generated.xcconfig)
       - name: Install dependencies
         run: flutter pub get
 
-      # 🔥 Podfile FIX (iOS 13 estable para plugins)
+      # 🔥 Fix Podfile (iOS 13)
       - name: Fix Podfile
         run: |
           cat > ios/Podfile << 'EOF'
@@ -79,16 +83,15 @@ jobs:
           end
           EOF
 
-      # 🍎 CocoaPods limpio
+      # 🍎 CocoaPods
       - name: Install CocoaPods
         run: |
           sudo gem install cocoapods
           pod repo update
 
-      # 🧹 Limpiar iOS (CLAVE)
+      # 🧹 Limpiar SOLO pods (NO flutter clean otra vez)
       - name: Clean iOS build
         run: |
-          flutter clean
           rm -rf ios/Pods ios/Podfile.lock
 
       # ⚙️ Instalar Pods
@@ -98,10 +101,9 @@ jobs:
           pod install
           cd ..
 
-      # 🔨 Build
+      # 🔨 Build iOS Simulator
       - name: Build iOS Simulator
-        run: |
-          flutter build ios --simulator --no-codesign
+        run: flutter build ios --simulator --no-codesign
 
       # 📦 Zip app
       - name: Zip app
