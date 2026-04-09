@@ -57,8 +57,13 @@ class MpHandler {
       print('[$timestamp][MpHandler] Respuesta MP: ${response.statusCode}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = json.decode(response.body);
         return Response.ok(
-          json.encode({'success': true}),
+          json.encode({
+            'success': true,
+            'qr_data': data['qr_data'],
+            'id': data['id'],
+          }),
           headers: {'Content-Type': 'application/json'},
         );
       }
