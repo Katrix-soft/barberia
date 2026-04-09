@@ -33,11 +33,11 @@ services:
     volumes:
       - /opt/posbarber/data:/data:rw
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8090/health || exit 1"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
 networks:
   npm_network:

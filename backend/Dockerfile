@@ -6,7 +6,8 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libsqlite3-0 \
-    ca-certificates && \
+    ca-certificates \
+    wget && \
     rm -rf /var/lib/apt/lists/*
 
 # Copiar configuración de dependencias
