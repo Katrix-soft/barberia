@@ -31,6 +31,7 @@ void main() async {
 
   // Mercado Pago proxy
   router.put('/mp/order', mpHandler.crearOrder);
+  router.post('/mp/order', mpHandler.crearOrder);
   router.delete('/mp/order', mpHandler.cancelarOrder);
   router.get('/mp/order/status', mpHandler.obtenerEstado);
 
