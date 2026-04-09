@@ -28,6 +28,8 @@ services:
       - PORT=8090
       - DB_PATH=/data/pos_barber.db
       - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+      - MP_USER_ID=${MP_USER_ID}
+      - MP_EXTERNAL_POS_ID=${MP_EXTERNAL_POS_ID}
     volumes:
       - /opt/posbarber/data:/data:rw
     healthcheck:
