@@ -8,18 +8,15 @@ class MercadoPagoService {
   /// En prod apunta a tu dominio real.
   static const _devHost = 'localhost:8090'; // ← TU IP LOCAL
   static const _prodHost = 'tudominio.com';     // ← TU DOMINIO EN PROD
-  static const _isDev = true;                   // ← toggle dev/prod
+  static const _isDev = false;                  // ← prod
 
   static String get _backendBase {
     if (kIsWeb) {
-      // En dev apuntamos directo al backend (CORS ya está habilitado)
-      if (_isDev) return 'http://192.168.1.9:8090/mp';
-      // En prod usamos ruta relativa (mismo servidor)
+      // En web usamos ruta relativa — Caddy hace proxy /mp/* → barber_backend:8090
       return '/mp';
     }
-    final host = _isDev ? _devHost : _prodHost;
-    final scheme = _isDev ? 'http' : 'https';
-    return '$scheme://$host/mp';
+    // En Android/iOS apuntamos al dominio real
+    return 'https://barber.katrix.com.ar/mp';
   }
 
   // El QR es estático — lo mostrás desde el panel de MP
