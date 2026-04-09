@@ -1,8 +1,22 @@
-FROM dart:stable
+# ── Stage 1: compilar AOT ──────────────────────────────────────────
+FROM dart:stable AS builder
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para sqflite_common_ffi y healthcheck
+COPY pubspec.yaml .
+RUN dart pub get
+
+COPY . .
+
+# Compilar binario nativo AOT (mucho menos RAM que dart run)
+RUN dart compile exe bin/server.dart -o bin/server
+
+# ── Stage 2: imagen final mínima ───────────────────────────────────
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# Solo lo necesario para correr el binario y el healthcheck
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libsqlite3-0 \
@@ -10,17 +24,11 @@ RUN apt-get update && \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
-# Copiar configuración de dependencias
-COPY pubspec.yaml .
-RUN dart pub get
+COPY --from=builder /runtime/ /
+COPY --from=builder /app/bin/server /app/bin/server
 
-# Copiar todo el código fuente
-COPY . .
-
-# Directorio de la bd (por si acaso el volumen se monta aquí)
 RUN mkdir -p /data
 
 EXPOSE 8090
 
-# Usar JIT (dart run) en lugar de AOT (exe) para evitar crash del compilador en el VPS
-CMD ["dart", "run", "bin/server.dart"]
+CMD ["/app/bin/server"]
