@@ -34,6 +34,7 @@ void main() async {
   router.post('/mp/order', mpHandler.crearOrder);
   router.delete('/mp/order', mpHandler.cancelarOrder);
   router.get('/mp/order/status', mpHandler.obtenerEstado);
+  router.get('/mp/qr-image', mpHandler.qrImage);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())

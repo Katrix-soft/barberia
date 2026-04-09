@@ -19,9 +19,8 @@ class MercadoPagoService {
     return 'https://barber.katrix.com.ar/mp';
   }
 
-  // El QR es estático — lo mostrás desde el panel de MP
-  // Si necesitás que sea dinámico, pedíselo al backend aparte
-  String get qrImageUrl => dotenv.env['MP_QR_IMAGE'] ?? '';
+  // El QR se sirve ahora desde el backend (proxy) para evitar problemas de CORS en Web
+  String get qrImageUrl => '$_backendBase/qr-image';
 
   Map<String, String> get _headers => {'Content-Type': 'application/json'};
 

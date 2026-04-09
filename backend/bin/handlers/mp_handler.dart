@@ -160,4 +160,26 @@ class MpHandler {
       );
     }
   }
+
+  // Proxy para la imagen del QR de Mercado Pago (evita problemas de CORS en web)
+  Future<Response> qrImage(Request request) async {
+    try {
+      final imageUrl = env['MP_QR_IMAGE'] ?? 'https://www.mercadopago.com/instore/merchant/qr/129444110/7ac43d9f1584427a85ee8d6be1ef464278ec8de688114ffab6fc9df555282748.png';
+      final response = await http.get(Uri.parse(imageUrl)).timeout(const Duration(seconds: 10));
+      return Response(
+        response.statusCode,
+        body: response.bodyBytes,
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+        },
+      );
+    } catch (e) {
+      return Response.internalServerError(
+        body: json.encode({'error': e.toString()}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    }
+  }
 }
