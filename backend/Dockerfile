@@ -1,8 +1,20 @@
-FROM dart:stable
+# Etapa 1: Compilación
+FROM dart:stable AS build
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para sqflite_common_ffi
+# Copiar dependencias y descargar
+COPY pubspec.yaml .
+RUN dart pub get
+
+# Copiar el resto del código y compilar a binario nativo
+COPY . .
+RUN dart compile exe bin/server.dart -o server
+
+# Etapa 2: Runtime (Imagen ligera)
+FROM debian:stable-slim
+
+# Instalar librerías necesarias en tiempo de ejecución
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libsqlite3-0 \
@@ -10,17 +22,15 @@ RUN apt-get update && \
     wget && \
     rm -rf /var/lib/apt/lists/*
 
-# Copiar configuración de dependencias
-COPY pubspec.yaml .
-RUN dart pub get
+WORKDIR /app
 
-# Copiar todo el código fuente
-COPY . .
+# Copiar el binario desde la etapa de compilación
+COPY --from=build /app/server .
 
-# Directorio de la bd (por si acaso el volumen se monta aquí)
+# Crear directorio de datos para la base de datos
 RUN mkdir -p /data
 
 EXPOSE 8090
 
-# Usar JIT en lugar de AOT (exe) para evitar crash de compilador
-CMD ["dart", "run", "bin/server.dart"]
+# Ejecutar el binario directamente (más eficiente en memoria)
+CMD ["./server"]
