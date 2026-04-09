@@ -33,13 +33,6 @@ class MpHandler {
     return pos;
   }
 
-  String get _externalStoreId {
-    final store = env['MP_EXTERNAL_STORE_ID'];
-    if (store == null || store.isEmpty) {
-      throw StateError('[MpHandler] ERROR CRÍTICO: MP_EXTERNAL_STORE_ID no configurado.');
-    }
-    return store;
-  }
 
   Map<String, String> get _headers => {
         'Authorization': 'Bearer $_accessToken',
@@ -52,7 +45,7 @@ class MpHandler {
     try {
       final body = await request.readAsString();
       final url = Uri.parse(
-        '$_mpBase/instore/qr/seller/collectors/$_userId/stores/$_externalStoreId/pos/$_externalPosId/orders',
+        '$_mpBase/instore/qr/seller/collectors/$_userId/pos/$_externalPosId/orders',
       );
 
       print('[$timestamp][MpHandler] PUT orden → $url');
@@ -89,7 +82,7 @@ class MpHandler {
     final timestamp = DateTime.now().toIso8601String();
     try {
       final url = Uri.parse(
-        '$_mpBase/instore/qr/seller/collectors/$_userId/stores/$_externalStoreId/pos/$_externalPosId/orders',
+        '$_mpBase/instore/qr/seller/collectors/$_userId/pos/$_externalPosId/orders',
       );
 
       print('[$timestamp][MpHandler] DELETE orden → $url');

@@ -83,7 +83,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
             Navigator.of(context).pop(true);
           }
         }
-      } else if (status == 'closed') { // Closed but not approved (rejected/cancelled)
+      } else if (status == 'closed' || status == 'closed_rejected') { // Closed but not approved (rejected/cancelled)
         timer.cancel();
          if (mounted) {
           setState(() {

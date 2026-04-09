@@ -100,7 +100,10 @@ class MercadoPagoService {
             final payments = order['payments'] as List?;
             final approved =
                 payments?.any((p) => p['status'] == 'approved') ?? false;
+            final rejected =
+                payments?.any((p) => p['status'] == 'rejected') ?? false;
             if (approved) return 'closed_approved';
+            if (rejected) return 'closed_rejected';
           }
           return status ?? 'pending';
         }
