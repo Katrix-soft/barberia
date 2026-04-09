@@ -1,7 +1,7 @@
 name: posbarber
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.4.27+25
+version: 1.4.28+26
 
 environment:
   sdk: ^3.9.2
