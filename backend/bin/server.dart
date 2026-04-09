@@ -41,6 +41,9 @@ void main() async {
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
   print('[Server] Escuchando en http://${server.address.host}:${server.port}');
+
+  // Mantiene el proceso vivo indefinidamente (evita que el main termine y Docker reinicie el contenedor)
+  await ProcessSignal.sigint.watch().first;
 }
 
 /// Middleware CORS — Permite peticiones desde el frontend (Web)
