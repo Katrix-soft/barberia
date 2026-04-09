@@ -66,10 +66,31 @@ class _SettingsPageState extends State<SettingsPage> {
     if (value) {
       try {
         if (kIsWeb) {
-          final authenticated = await PwaInstaller.authenticateWebBiometrics();
-          if (authenticated) {
+          final prefs = await SharedPreferences.getInstance();
+          final email = prefs.getString('saved_email') ?? 'usuario';
+          final credId = await PwaInstaller.linkWebBiometrics(email);
+          if (credId != null) {
+            // Guardar credId en SharedPreferences para sobrevivir limpiezas de localStorage
+            await prefs.setString('bio_cred_id', credId);
             await prefs.setBool('use_biometrics', true);
             setState(() => _useBiometrics = true);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Biometría activada correctamente ✓'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No pudo registrarse la biometría en el navegador'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
           }
           return;
         }

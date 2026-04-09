@@ -3,13 +3,9 @@ class PwaInstaller {
     return false;
   }
 
-  static Future<bool> linkWebBiometrics(String userName) async {
-    return false;
-  }
+  static Future<String?> linkWebBiometrics(String userName) async => null;
 
-  static Future<bool> authenticateWebBiometrics() async {
-    return false;
-  }
+  static Future<bool> authenticateWebBiometrics({String? credId}) async => false;
 
   static Future<bool> checkWebBiometrics() async {
     return false;

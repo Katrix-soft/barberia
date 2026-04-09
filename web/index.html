@@ -371,33 +371,35 @@
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
 
-        const publicKeyCredentialCreationOptions = {
-          challenge: challenge,
-          rp: { name: "BM BARBER", id: window.location.hostname },
-          user: {
-            id: Uint8Array.from("USER_ID_" + userName, c => c.charCodeAt(0)),
-            name: userName || "usuario@barberia.com",
-            displayName: userName || "Usuario Barber"
-          },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: { 
-            authenticatorAttachment: "platform",
-            userVerification: "required",
-            residentKey: "preferred"
-          },
-          timeout: 60000
-        };
-
         const credential = await navigator.credentials.create({
-          publicKey: publicKeyCredentialCreationOptions
+          publicKey: {
+            challenge: challenge,
+            rp: { name: "BM BARBER", id: window.location.hostname },
+            user: {
+              id: Uint8Array.from("USER_ID_" + userName, c => c.charCodeAt(0)),
+              name: userName || "usuario@barberia.com",
+              displayName: userName || "Usuario Barber"
+            },
+            pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              userVerification: "required",
+              residentKey: "preferred"
+            },
+            timeout: 60000
+          }
         });
 
         if (credential) {
           const credId = uint8ArrayToBase64(credential.rawId);
           localStorage.setItem('katrix_bio_cred_id', credId);
           localStorage.setItem('katrix_bio_linked', 'true');
-          console.log('[PWA] Biometrics linked successfully');
-          return true;
+          // Notificar a Flutter para que lo persista en SharedPreferences
+          if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('onBioCredSaved', credId);
+          }
+          console.log('[PWA] Biometrics linked:', credId);
+          return credId; // devolvemos el credId para que Flutter lo guarde
         }
         return false;
       } catch (e) {
@@ -406,31 +408,36 @@
       }
     };
 
-    window.authenticateWebBiometrics = async () => {
+    window.authenticateWebBiometrics = async (credIdOverride) => {
       try {
         if (typeof window.PublicKeyCredential === 'undefined') return false;
 
-        const storedCredId = localStorage.getItem('katrix_bio_cred_id');
+        // Usar credId de localStorage o el que pasa Flutter como override
+        let storedCredId = credIdOverride || localStorage.getItem('katrix_bio_cred_id');
         if (!storedCredId) {
-          console.warn('[PWA] No biometric credential linked');
+          console.warn('[PWA] No biometric credential found');
           return false;
+        }
+
+        // Si vino de Flutter, guardarlo en localStorage para futuras sesiones
+        if (credIdOverride) {
+          localStorage.setItem('katrix_bio_cred_id', credIdOverride);
+          localStorage.setItem('katrix_bio_linked', 'true');
         }
 
         const challenge = new Uint8Array(32);
         window.crypto.getRandomValues(challenge);
 
-        const publicKeyCredentialRequestOptions = {
-          challenge: challenge,
-          allowCredentials: [{
-            id: base64ToUint8Array(storedCredId),
-            type: 'public-key'
-          }],
-          userVerification: "required",
-          timeout: 60000
-        };
-
         const assertion = await navigator.credentials.get({
-          publicKey: publicKeyCredentialRequestOptions
+          publicKey: {
+            challenge: challenge,
+            allowCredentials: [{
+              id: base64ToUint8Array(storedCredId),
+              type: 'public-key'
+            }],
+            userVerification: "required",
+            timeout: 60000
+          }
         });
 
         if (assertion) {
@@ -439,26 +446,22 @@
         }
         return false;
       } catch (e) {
-        console.warn('[PWA] Biometric auth failed or cancelled:', e);
+        console.warn('[PWA] Biometric auth failed:', e);
         return false;
       }
     };
 
     window.checkWebBiometrics = async () => {
       try {
-        // En Web, si no hay credencial vinculada, no ofrecemos el login por biometría aún
-        const isLinked = localStorage.getItem('katrix_bio_linked') === 'true';
-        
-        if (typeof window.PublicKeyCredential !== 'undefined' && 
-            typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          console.log('[PWA] Biometrics support:', available, 'Linked:', isLinked);
-          return !!available;
-        }
+        if (typeof window.PublicKeyCredential === 'undefined') return false;
+        if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== 'function') return false;
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        console.log('[PWA] Biometrics hardware:', available);
+        return !!available;
       } catch (e) {
-        console.error('[PWA] Biometric check internal error:', e);
+        console.error('[PWA] Biometric check error:', e);
+        return false;
       }
-      return false;
     };
 
     document.getElementById('install-button').addEventListener('click', async () => {

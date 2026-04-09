@@ -110,9 +110,24 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _authenticateWithBiometrics() async {
     try {
       if (kIsWeb) {
-        final authenticated = await PwaInstaller.authenticateWebBiometrics();
+        // Restaurar credId desde SharedPreferences a localStorage si fue limpiado
+        final prefs = await SharedPreferences.getInstance();
+        final credId = prefs.getString('bio_cred_id');
+        final authenticated = await PwaInstaller.authenticateWebBiometrics(credId: credId);
         if (authenticated) {
           _onBiometricAuthSuccess();
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Biometría no disponible o denegada. Ingresá con tu contraseña.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          // Desactivar biometría si falla para que no moleste más
+          await prefs.setBool('use_biometrics', false);
+          setState(() => _isBiometricSupported = false);
         }
         return;
       }

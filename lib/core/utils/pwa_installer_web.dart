@@ -19,33 +19,28 @@ class PwaInstaller {
     }
   }
 
-  static Future<bool> linkWebBiometrics(String userName) async {
+  static Future<String?> linkWebBiometrics(String userName) async {
     try {
-      if (!js.context.hasProperty('linkWebBiometrics')) {
-        return false;
-      }
+      if (!js.context.hasProperty('linkWebBiometrics')) return null;
       final dynamic result = js.context.callMethod('linkWebBiometrics', [userName]);
       if (result != null && js_util.hasProperty(result, 'then')) {
-        final future = js_util.promiseToFuture(result);
-        final finalResult = await future;
-        return finalResult == true;
+        final val = await js_util.promiseToFuture(result);
+        if (val == false || val == null) return null;
+        return val.toString();
       }
-      return result == true;
+      if (result == false || result == null) return null;
+      return result.toString();
     } catch (e) {
-      return false;
+      return null;
     }
   }
 
-  static Future<bool> authenticateWebBiometrics() async {
+  static Future<bool> authenticateWebBiometrics({String? credId}) async {
     try {
-      if (!js.context.hasProperty('authenticateWebBiometrics')) {
-        return false;
-      }
-      final dynamic result = js.context.callMethod('authenticateWebBiometrics');
+      if (!js.context.hasProperty('authenticateWebBiometrics')) return false;
+      final dynamic result = js.context.callMethod('authenticateWebBiometrics', [credId ?? '']);
       if (result != null && js_util.hasProperty(result, 'then')) {
-        final future = js_util.promiseToFuture(result);
-        final finalResult = await future;
-        return finalResult == true;
+        return await js_util.promiseToFuture(result) == true;
       }
       return result == true;
     } catch (e) {
