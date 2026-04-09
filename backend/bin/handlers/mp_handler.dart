@@ -57,6 +57,14 @@ class MpHandler {
       print('[$timestamp][MpHandler] Respuesta MP: ${response.statusCode}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Manejar respuestas vacías como el 204 No Content
+        if (response.statusCode == 204 || response.body.isEmpty) {
+          return Response.ok(
+            json.encode({'success': true, 'message': 'Order processed (204)'}),
+            headers: {'Content-Type': 'application/json'},
+          );
+        }
+
         final data = json.decode(response.body);
         return Response.ok(
           json.encode({
