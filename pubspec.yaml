@@ -1,7 +1,7 @@
 name: posbarber
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.4.36+34
+version: 1.4.37+35
 
 environment:
   sdk: ^3.9.2
@@ -36,6 +36,7 @@ dependencies:
   crypto: ^3.0.3
   flutter_secure_storage: ^9.2.2
   flutter_dotenv: ^6.0.0
+  js: ^0.7.1
 
 dev_dependencies:
   flutter_test:
