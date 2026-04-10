@@ -129,11 +129,17 @@ class _PosPageState extends State<PosPage> {
 
       await prefs.setBool('use_biometrics_asked', true);
       if (result == true) {
-        bool linked = true;
+        bool linked = false;
         if (kIsWeb) {
           final authState = context.read<AuthBloc>().state;
           final userName = authState is Authenticated ? authState.user.name : 'Staff';
-          linked = await PwaInstaller.linkWebBiometrics(userName);
+          final credId = await PwaInstaller.linkWebBiometrics(userName);
+          if (credId != null) {
+            await prefs.setString('bio_cred_id', credId);
+            linked = true;
+          }
+        } else {
+          linked = true; // On mobile, if they said yes, we trust the already performed auth
         }
 
         if (linked) {
