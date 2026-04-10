@@ -38,7 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkBiometricSupport() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 1500));
     
     try {
       bool isSupported = false;

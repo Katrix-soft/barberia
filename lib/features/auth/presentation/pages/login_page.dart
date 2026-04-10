@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen>
         });
 
         if (shouldOfferBiometrics && useBiometrics) {
-          Future.delayed(const Duration(milliseconds: 500), () {
+          Future.delayed(const Duration(milliseconds: 1500), () {
             if (mounted) _authenticateWithBiometrics();
           });
         }
