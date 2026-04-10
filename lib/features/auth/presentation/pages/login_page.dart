@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen>
   final LocalAuthentication auth = LocalAuthentication();
   bool _isBiometricSupported = false;
   bool _showBiometricOnly = false;
+  bool _biometricCheckDone = false;
   bool _obscurePassword = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -55,6 +56,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
+    if (_biometricCheckDone) return;
+    _biometricCheckDone = true;
     await Future.delayed(const Duration(milliseconds: 300));
     try {
       bool isSupported = false;
@@ -252,7 +255,8 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             );
           } else if (state is Authenticated) {
-            // El diálogo de activación se maneja ahora solo en PosPage para evitar duplicados.
+            // La navegación se maneja en main.dart pero aseguramos que no haya loops
+            setState(() => _biometricCheckDone = true);
           }
         },
         child: Stack(
