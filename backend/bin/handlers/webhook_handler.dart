@@ -123,8 +123,13 @@ class WebhookHandler {
 
     // ✅ PASO 4: Evaluar el estado
     if (status == 'closed') {
-      print('[$timestamp][Webhook] ✅ Pago completado. Marcando turno como pagado...');
-      await _markAppointmentAsPaid(externalReference, timestamp);
+      print('[$timestamp][Webhook] ✅ Pago completado. Buscando destino de referencia: $externalReference');
+      
+      if (externalReference != null && externalReference.startsWith('VEN-')) {
+         await _markSaleAsPaid(externalReference, timestamp);
+      } else {
+         await _markAppointmentAsPaid(externalReference, timestamp);
+      }
     } else if (status == 'opened') {
       print('[$timestamp][Webhook] ⏳ Pago aún no completado (status: opened). Ignorando.');
     } else {
@@ -190,7 +195,54 @@ class WebhookHandler {
         print('[$timestamp][Webhook] ❌ No se actualizó el turno #$appointmentId (0 rows affected).');
       }
     } catch (e, stack) {
-      print('[$timestamp][Webhook] ❌ Error al acceder a la base de datos: $e');
+    }
+  }
+
+  /// Actualiza el campo `is_paid` de la venta en la base de datos SQLite.
+  Future<void> _markSaleAsPaid(String? externalReference, String timestamp) async {
+    if (externalReference == null || externalReference.isEmpty) {
+      print('[$timestamp][Webhook] ⚠️  external_reference vacío, no se puede actualizar venta.');
+      return;
+    }
+
+    try {
+      final db = await databaseFactory.openDatabase(dbPath);
+
+      // Verificar que la venta existe
+      final existing = await db.query(
+        'sales',
+        where: 'external_reference = ?',
+        whereArgs: [externalReference],
+      );
+
+      if (existing.isEmpty) {
+        print('[$timestamp][Webhook] ⚠️  Venta con ref "$externalReference" no encontrada.');
+        await db.close();
+        return;
+      }
+
+      print('[$timestamp][Webhook] Venta "$externalReference" encontrada.');
+
+      // Actualizar a is_paid = 1
+      final rowsAffected = await db.update(
+        'sales',
+        {
+          'is_paid': 1,
+          'payment_method': 'qr',
+        },
+        where: 'external_reference = ?',
+        whereArgs: [externalReference],
+      );
+
+      await db.close();
+
+      if (rowsAffected > 0) {
+        print('[$timestamp][Webhook] ✅ Venta "$externalReference" marcada como PAGADA (QR) correctamente.');
+      } else {
+        print('[$timestamp][Webhook] ❌ No se actualizó la venta "$externalReference" (0 rows affected).');
+      }
+    } catch (e, stack) {
+      print('[$timestamp][Webhook] ❌ Error al acceder a la base de datos (Sales): $e');
       print('[$timestamp][Webhook] Stack: $stack');
     }
   }

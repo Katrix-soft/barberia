@@ -11,6 +11,8 @@ class SaleModel extends Sale {
     required super.userName,
     required super.items,
     super.isSynced = false,
+    super.externalReference,
+    super.isPaid = false,
   });
 
   factory SaleModel.fromMap(
@@ -30,6 +32,8 @@ class SaleModel extends Sale {
       userName: map['user_name'],
       items: items,
       isSynced: (map['is_synced'] ?? 0) == 1,
+      externalReference: map['external_reference'],
+      isPaid: (map['is_paid'] ?? 0) == 1,
     );
   }
 
@@ -43,6 +47,8 @@ class SaleModel extends Sale {
       'payment_method': paymentMethod.name,
       'user_name': userName,
       'is_synced': isSynced ? 1 : 0,
+      'external_reference': externalReference,
+      'is_paid': isPaid ? 1 : 0,
     };
   }
 }

@@ -1719,16 +1719,27 @@ class _PosPageState extends State<PosPage> {
                         label: 'PAGO QR',
                         icon: Icons.qr_code_2_rounded,
                         onTap: () async {
+                          final ref = 'VEN-${DateTime.now().millisecondsSinceEpoch}';
                           final success = await showDialog<bool>(
                             context: context,
                             barrierDismissible: false,
                             builder: (context) => MercadopagoQRDialog(
                               total: state.total,
-                              orderReference: 'VEN-${DateTime.now().millisecondsSinceEpoch}',
+                              orderReference: ref,
                             ),
                           );
                           if (success == true) {
-                            _finalizeSale(context, PaymentMethod.qr);
+                            final authState = context.read<AuthBloc>().state;
+                            final String effectiveUserName =
+                                authState is Authenticated
+                                    ? authState.user.name
+                                    : 'Staff';
+                            context.read<PosBloc>().add(ConfirmSale(
+                                  PaymentMethod.qr,
+                                  effectiveUserName,
+                                  externalReference: ref,
+                                ));
+                            Navigator.pop(context);
                           }
                         },
                       ),

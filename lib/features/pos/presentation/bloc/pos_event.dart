@@ -54,10 +54,11 @@ class SelectCustomer extends PosEvent {
 class ConfirmSale extends PosEvent {
   final PaymentMethod paymentMethod;
   final String userName;
-  const ConfirmSale(this.paymentMethod, this.userName);
+  final String? externalReference;
+  const ConfirmSale(this.paymentMethod, this.userName, {this.externalReference});
 
   @override
-  List<Object?> get props => [paymentMethod, userName];
+  List<Object?> get props => [paymentMethod, userName, externalReference];
 }
 
 class ClearPos extends PosEvent {}

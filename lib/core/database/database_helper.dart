@@ -320,12 +320,20 @@ class DatabaseHelper {
         debugPrint('[DB] v28: cashbox_sessions ya existe o error: $e');
       }
     }
-    if (oldVersion < 29) {
-      try {
-        await db.execute('ALTER TABLE sales ADD COLUMN is_liquidated INTEGER DEFAULT 0');
-      } catch (e) {
-        debugPrint('[DB] v29: is_liquidated ya existe o error: $e');
       }
+    }
+    if (oldVersion < 30) {
+      try {
+        await db.execute('ALTER TABLE sales ADD COLUMN external_reference TEXT DEFAULT NULL');
+      } catch (e) {
+        debugPrint('[DB] v30: external_reference ya existe o error: $e');
+      }
+      try {
+        await db.execute('ALTER TABLE sales ADD COLUMN is_paid INTEGER DEFAULT 0');
+      } catch (e) {
+        debugPrint('[DB] v30: is_paid ya existe o error: $e');
+      }
+      debugPrint('[DB] Migration v30: campos QR agregados a sales.');
     }
   }
 
@@ -380,6 +388,8 @@ class DatabaseHelper {
         user_name TEXT NOT NULL,
         is_synced INTEGER DEFAULT 0,
         is_liquidated INTEGER DEFAULT 0,
+        external_reference TEXT,
+        is_paid INTEGER DEFAULT 0,
         FOREIGN KEY (customer_id) REFERENCES customers (id)
       )
     ''');

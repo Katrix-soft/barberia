@@ -289,6 +289,8 @@ class PosBloc extends Bloc<PosEvent, PosState> {
       paymentMethod: event.paymentMethod,
       userName: event.userName,
       items: state.cartItems,
+      externalReference: event.externalReference,
+      isPaid: event.paymentMethod == PaymentMethod.qr ? false : true, // QR starts unpaid until webhook
     );
 
     final result = await repository.createSale(sale);
