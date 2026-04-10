@@ -16,3 +16,4 @@ macos/
 .github/
 .idea/
 .vscode/
+.env
