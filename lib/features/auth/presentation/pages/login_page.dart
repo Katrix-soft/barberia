@@ -54,42 +54,87 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
-    
+    await Future.delayed(const Duration(milliseconds: 1500));
     try {
-      bool shouldOfferBiometrics = false;
-
+      bool isSupported = false;
       if (kIsWeb) {
-        // Reintentar hasta 3 veces con delay si falla inicialmente
-        for (int i = 0; i < 3; i++) {
-          shouldOfferBiometrics = await PwaInstaller.checkWebBiometrics();
-          if (shouldOfferBiometrics) break;
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
+        isSupported = await PwaInstaller.checkWebBiometrics();
       } else {
-        final isSupported = await auth.isDeviceSupported();
+        final isDeviceSupported = await auth.isDeviceSupported();
         final canCheckBiometrics = await auth.canCheckBiometrics;
-        shouldOfferBiometrics = isSupported || canCheckBiometrics;
+        isSupported = isDeviceSupported || canCheckBiometrics;
       }
 
-      if (mounted) {
-        final prefs = await SharedPreferences.getInstance();
-        final useBiometrics = prefs.getBool('use_biometrics') ?? false;
+      if (!mounted) return;
+      final prefs = await SharedPreferences.getInstance();
+      final useBiometrics = prefs.getBool('use_biometrics') ?? false;
+      final credId = prefs.getString('bio_cred_id');
 
-        setState(() {
-          // Solo mostramos el botón si el dispositivo es compatible Y el usuario ya lo habilitó
-          _isBiometricSupported = shouldOfferBiometrics && useBiometrics;
+      setState(() {
+        _isBiometricSupported = isSupported;
+      });
+
+      if (isSupported && !useBiometrics) {
+        // Mostrar prompt para habilitar biometría
+        _showEnableBiometricsPrompt();
+        return;
+      }
+
+      if (isSupported && useBiometrics && credId != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) _authenticateWithBiometrics();
         });
-
-        if (shouldOfferBiometrics && useBiometrics) {
-          Future.delayed(const Duration(milliseconds: 1500), () {
-            if (mounted) _authenticateWithBiometrics();
-          });
-        }
       }
     } catch (e) {
       debugPrint('[Auth] Biometrics check error: $e');
     }
+  }
+
+  void _showEnableBiometricsPrompt() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text(
+          'Inicio de sesión rápido',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '¿Deseás habilitar tu Face ID / Huella para acceder automáticamente la próxima vez?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('No por ahora', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC5A028)),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final prefs = await SharedPreferences.getInstance();
+              final email = prefs.getString('saved_email') ?? 'usuario';
+              final credId = await PwaInstaller.linkWebBiometrics(email);
+              if (credId != null) {
+                await prefs.setString('bio_cred_id', credId);
+                await prefs.setBool('use_biometrics', true);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Biometría activada ✓'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+                _authenticateWithBiometrics();
+              }
+            },
+            child: const Text('Sí, habilitar', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -115,7 +160,6 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _authenticateWithBiometrics() async {
     try {
       if (kIsWeb) {
-        // Restaurar credId desde SharedPreferences a localStorage si fue limpiado
         final prefs = await SharedPreferences.getInstance();
         final credId = prefs.getString('bio_cred_id');
         final authenticated = await PwaInstaller.authenticateWebBiometrics(credId: credId);
@@ -125,13 +169,13 @@ class _LoginScreenState extends State<LoginScreen>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Biometría no disponible o denegada. Ingresá con tu contraseña.'),
+                content: Text('Biometría no disponible. Ingresá con tu contraseña.'),
                 backgroundColor: Colors.orange,
               ),
             );
           }
-          // Desactivar biometría si falla para que no moleste más
-          await prefs.setBool('use_biometrics', false);
+          final prefs2 = await SharedPreferences.getInstance();
+          await prefs2.setBool('use_biometrics', false);
           setState(() => _isBiometricSupported = false);
         }
         return;
