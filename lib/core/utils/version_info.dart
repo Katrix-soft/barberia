@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class VersionInfo {
-  static const String appVersion = '1.4.37';
+  static const String appVersion = '1.4.38';
   static const int dbVersion = 29;
   
   // URL where version.json is hosted
