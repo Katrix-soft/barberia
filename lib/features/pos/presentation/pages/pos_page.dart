@@ -137,10 +137,10 @@ class _PosPageState extends State<PosPage> {
         bool linked = false;
         if (kIsWeb) {
           final authState = context.read<AuthBloc>().state;
-          final userName = authState is Authenticated ? authState.user.name : 'Staff';
-          final credId = await PwaInstaller.linkWebBiometrics(userName);
-          if (credId != null) {
-            await prefs.setString('bio_cred_id', credId);
+          final String userForBio = authState is Authenticated ? authState.user.name : 'Staff';
+          final String? bioCredential = await PwaInstaller.linkWebBiometrics(userForBio);
+          if (bioCredential != null && bioCredential.isNotEmpty) {
+            await prefs.setString('bio_cred_id', bioCredential);
             linked = true;
           }
         } else {

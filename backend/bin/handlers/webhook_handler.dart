@@ -1,26 +1,81 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:shelf/shelf.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// Handler principal para el endpoint POST /webhook/mercadopago
 class WebhookHandler {
   final String dbPath;
 
   WebhookHandler({required this.dbPath}) {
-    // Inicializar sqflite para desktop/server
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
 
-  /// Devuelve el token de Mercado Pago desde la variable de entorno.
   String get _accessToken {
     final token = Platform.environment['MP_ACCESS_TOKEN'];
     if (token == null || token.isEmpty) {
-      throw StateError('[Webhook] ERROR CRÍTICO: MP_ACCESS_TOKEN no está configurado.');
+      throw StateError('[Webhook] ERROR CRÍTICO: MP_ACCESS_TOKEN no configurado.');
     }
     return token;
+  }
+
+  String get _webhookSecret {
+    final secret = Platform.environment['MP_WEBHOOK_SECRET'];
+    if (secret == null || secret.isEmpty) {
+      throw StateError('[Webhook] ERROR CRÍTICO: MP_WEBHOOK_SECRET no configurado.');
+    }
+    return secret;
+  }
+
+  /// Valida la firma HMAC-SHA256 que manda MP en el header x-signature
+  bool _validateSignature(Request request, String body) {
+    try {
+      final xSignature = request.headers['x-signature'] ?? '';
+      final xRequestId = request.headers['x-request-id'] ?? '';
+
+      if (xSignature.isEmpty) {
+        print('[Webhook] ⚠️  Sin header x-signature — rechazado');
+        return false;
+      }
+
+      // Parsear ts y v1 del header x-signature
+      String ts = '';
+      String v1 = '';
+      for (final part in xSignature.split(',')) {
+        final kv = part.trim().split('=');
+        if (kv.length == 2) {
+          if (kv[0] == 'ts') ts = kv[1];
+          if (kv[0] == 'v1') v1 = kv[1];
+        }
+      }
+
+      if (ts.isEmpty || v1.isEmpty) {
+        print('[Webhook] ⚠️  Firma malformada — rechazado');
+        return false;
+      }
+
+      // Construir el string a firmar según la doc de MP
+      // id:{x-request-id};request-date:{ts};
+      final manifest = 'id:$xRequestId;request-date:$ts;';
+
+      final key = utf8.encode(_webhookSecret);
+      final message = utf8.encode(manifest);
+      final hmac = Hmac(sha256, key);
+      final digest = hmac.convert(message).toString();
+
+      if (digest != v1) {
+        print('[Webhook] ❌ Firma inválida. Expected: $digest | Got: $v1');
+        return false;
+      }
+
+      print('[Webhook] ✅ Firma válida');
+      return true;
+    } catch (e) {
+      print('[Webhook] ❌ Error validando firma: $e');
+      return false;
+    }
   }
 
   Future<Response> handle(Request request) async {
@@ -29,35 +84,33 @@ class WebhookHandler {
     print('[$timestamp][Webhook] Notificación recibida de Mercado Pago');
 
     try {
-      // ✅ PASO 1: Leer el cuerpo ANTES de responder. 
-      // Si devolvemos el Response antes de leerlo, Shelf puede cerrar el stream.
       final String body = await request.readAsString();
-      
-      // Procesamos de forma asíncrona sin bloquear la respuesta de red.
-      _processWebhookAsync(body, timestamp);
 
+      // Validar firma antes de procesar
+      if (!_validateSignature(request, body)) {
+        print('[$timestamp][Webhook] ❌ Request rechazado por firma inválida');
+        return Response(401, body: 'Unauthorized\n');
+      }
+
+      _processWebhookAsync(body, timestamp);
       return Response.ok('OK\n', headers: {'Content-Type': 'text/plain'});
     } catch (e) {
-      print('[$timestamp][Webhook] ❌ Error inicial al leer el body: $e');
-      return Response.internalServerError(body: 'Error reading body\n');
+      print('[$timestamp][Webhook] ❌ Error inicial: $e');
+      return Response.internalServerError(body: 'Error\n');
     }
   }
 
-  /// Procesa la notificación después de leer el body.
   Future<void> _processWebhookAsync(String body, String timestamp) async {
     try {
-      if (body.isEmpty) {
-        print('[$timestamp][Webhook] ⚠️  Body vacío, ignorando.');
-        return;
-      }
+      if (body.isEmpty) return;
 
-      print('[$timestamp][Webhook] Body recibido: $body');
+      print('[$timestamp][Webhook] Body: $body');
 
       Map<String, dynamic> data;
       try {
         data = json.decode(body) as Map<String, dynamic>;
       } catch (e) {
-        print('[$timestamp][Webhook] ⚠️  Body inválido (no es JSON): $e');
+        print('[$timestamp][Webhook] ⚠️  Body inválido: $e');
         return;
       }
 
@@ -72,178 +125,88 @@ class WebhookHandler {
         print('[$timestamp][Webhook] Tópico "$topic" ignorado.');
       }
     } catch (e, stack) {
-      print('[$timestamp][Webhook] ❌ Error inesperado: $e');
-      print('[$timestamp][Webhook] Stack: $stack');
+      print('[$timestamp][Webhook] ❌ Error inesperado: $e\n$stack');
     }
   }
 
-
-  /// Consulta el merchant_order a MP y actualiza el turno si está cerrado.
   Future<void> _handleMerchantOrder(String? orderId, String timestamp) async {
-    if (orderId == null || orderId.isEmpty) {
-      print('[$timestamp][Webhook] ⚠️  merchant_order sin ID, ignorando.');
-      return;
-    }
+    if (orderId == null || orderId.isEmpty) return;
 
-    // ✅ PASO 3: Consultar el estado de la orden a Mercado Pago
     final url = 'https://api.mercadopago.com/merchant_orders/$orderId';
-    print('[$timestamp][Webhook] Consultando orden: GET $url');
+    print('[$timestamp][Webhook] GET $url');
 
     late http.Response response;
     try {
       response = await http.get(
         Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $_accessToken',
-          'Content-Type': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $_accessToken', 'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
     } catch (e) {
-      print('[$timestamp][Webhook] ❌ Error al consultar MP: $e');
+      print('[$timestamp][Webhook] ❌ Error consultando MP: $e');
       return;
     }
 
     if (response.statusCode != 200) {
-      print('[$timestamp][Webhook] ❌ MP respondió ${response.statusCode}: ${response.body}');
+      print('[$timestamp][Webhook] ❌ MP respondió ${response.statusCode}');
       return;
     }
 
-    late Map<String, dynamic> order;
-    try {
-      order = json.decode(response.body) as Map<String, dynamic>;
-    } catch (e) {
-      print('[$timestamp][Webhook] ❌ Respuesta de MP no es JSON válido: $e');
-      return;
-    }
-
+    final order = json.decode(response.body) as Map<String, dynamic>;
     final status = order['status'] as String?;
     final externalReference = order['external_reference']?.toString();
 
-    print('[$timestamp][Webhook] Orden #$orderId | status: "$status" | external_reference: "$externalReference"');
+    print('[$timestamp][Webhook] Orden #$orderId | status: $status | ref: $externalReference');
 
-    // ✅ PASO 4: Evaluar el estado
-    if (status == 'closed') {
-      print('[$timestamp][Webhook] ✅ Pago completado. Buscando destino de referencia: $externalReference');
-      
+    if (status != 'closed') {
+      print('[$timestamp][Webhook] ⏳ Status "$status" — ignorado');
+      return;
+    }
+
+    final db = await databaseFactory.openDatabase(dbPath);
+
+    try {
+      // 1. Buscar en ventas del POS por external_reference
       if (externalReference != null && externalReference.startsWith('VEN-')) {
-         await _markSaleAsPaid(externalReference, timestamp);
-      } else {
-         await _markAppointmentAsPaid(externalReference, timestamp);
-      }
-    } else if (status == 'opened') {
-      print('[$timestamp][Webhook] ⏳ Pago aún no completado (status: opened). Ignorando.');
-    } else {
-      print('[$timestamp][Webhook] ℹ️  Status desconocido: "$status". Ignorando.');
-    }
-  }
+        final salesResult = await db.query(
+          'sales',
+          where: 'external_reference = ?',
+          whereArgs: [externalReference],
+        );
 
-  /// Actualiza el campo `status` del turno en la base de datos SQLite.
-  Future<void> _markAppointmentAsPaid(String? externalReference, String timestamp) async {
-    if (externalReference == null || externalReference.isEmpty) {
-      print('[$timestamp][Webhook] ⚠️  external_reference vacío, no se puede actualizar turno.');
-      return;
-    }
-
-    final appointmentId = int.tryParse(externalReference);
-    if (appointmentId == null) {
-      print('[$timestamp][Webhook] ⚠️  external_reference "$externalReference" no es un ID de turno válido.');
-      return;
-    }
-
-    try {
-      final db = await databaseFactory.openDatabase(dbPath);
-
-      // Verificar que el turno existe
-      final existing = await db.query(
-        'appointments',
-        where: 'id = ?',
-        whereArgs: [appointmentId],
-      );
-
-      if (existing.isEmpty) {
-        print('[$timestamp][Webhook] ⚠️  Turno #$appointmentId no encontrado en la base de datos.');
-        await db.close();
-        return;
+        if (salesResult.isNotEmpty) {
+          final saleId = salesResult.first['id'];
+          await db.update(
+            'sales',
+            {'is_paid': 1, 'payment_method': 'qr'},
+            where: 'id = ?',
+            whereArgs: [saleId],
+          );
+          print('[$timestamp][Webhook] ✅ Venta #$saleId marcada como PAGADA por QR');
+          return;
+        }
       }
 
-      final currentStatus = existing.first['status'] as String?;
-      print('[$timestamp][Webhook] Turno #$appointmentId encontrado. Status actual: "$currentStatus"');
+      // 2. Fallback: buscar en appointments por ID numérico
+      final appointmentId = int.tryParse(externalReference ?? '');
+      if (appointmentId != null) {
+        final existing = await db.query(
+          'appointments',
+          where: 'id = ?',
+          whereArgs: [appointmentId],
+        );
 
-      if (currentStatus == 'paid') {
-        print('[$timestamp][Webhook] ℹ️  Turno #$appointmentId ya estaba marcado como pagado.');
-        await db.close();
-        return;
+        if (existing.isNotEmpty && existing.first['status'] != 'paid') {
+          await db.update(
+            'appointments',
+            {'status': 'paid', 'payment_method': 'qr', 'paid_at': DateTime.now().toIso8601String()},
+            where: 'id = ?',
+            whereArgs: [appointmentId],
+          );
+          print('[$timestamp][Webhook] ✅ Turno #$appointmentId marcado como PAGADO');
+        }
       }
-
-      // Actualizar a 'paid'
-      final rowsAffected = await db.update(
-        'appointments',
-        {
-          'status': 'paid',
-          'payment_method': 'qr',
-          'paid_at': DateTime.now().toIso8601String(),
-        },
-        where: 'id = ?',
-        whereArgs: [appointmentId],
-      );
-
+    } finally {
       await db.close();
-
-      if (rowsAffected > 0) {
-        print('[$timestamp][Webhook] ✅ Turno #$appointmentId marcado como PAGADO correctamente.');
-      } else {
-        print('[$timestamp][Webhook] ❌ No se actualizó el turno #$appointmentId (0 rows affected).');
-      }
-    } catch (e, stack) {
-    }
-  }
-
-  /// Actualiza el campo `is_paid` de la venta en la base de datos SQLite.
-  Future<void> _markSaleAsPaid(String? externalReference, String timestamp) async {
-    if (externalReference == null || externalReference.isEmpty) {
-      print('[$timestamp][Webhook] ⚠️  external_reference vacío, no se puede actualizar venta.');
-      return;
-    }
-
-    try {
-      final db = await databaseFactory.openDatabase(dbPath);
-
-      // Verificar que la venta existe
-      final existing = await db.query(
-        'sales',
-        where: 'external_reference = ?',
-        whereArgs: [externalReference],
-      );
-
-      if (existing.isEmpty) {
-        print('[$timestamp][Webhook] ⚠️  Venta con ref "$externalReference" no encontrada.');
-        await db.close();
-        return;
-      }
-
-      print('[$timestamp][Webhook] Venta "$externalReference" encontrada.');
-
-      // Actualizar a is_paid = 1
-      final rowsAffected = await db.update(
-        'sales',
-        {
-          'is_paid': 1,
-          'payment_method': 'qr',
-        },
-        where: 'external_reference = ?',
-        whereArgs: [externalReference],
-      );
-
-      await db.close();
-
-      if (rowsAffected > 0) {
-        print('[$timestamp][Webhook] ✅ Venta "$externalReference" marcada como PAGADA (QR) correctamente.');
-      } else {
-        print('[$timestamp][Webhook] ❌ No se actualizó la venta "$externalReference" (0 rows affected).');
-      }
-    } catch (e, stack) {
-      print('[$timestamp][Webhook] ❌ Error al acceder a la base de datos (Sales): $e');
-      print('[$timestamp][Webhook] Stack: $stack');
     }
   }
 }

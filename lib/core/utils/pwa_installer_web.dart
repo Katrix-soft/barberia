@@ -1,49 +1,37 @@
-import 'dart:js_util' as js_util;
-import 'package:flutter/foundation.dart';
+import 'dart:js_interop';
 
-class PwaInstaller {
+@JS('checkWebBiometrics')
+external JSPromise<JSBool> _checkWebBiometrics();
+
+@JS('linkWebBiometrics')
+external JSPromise<JSString?> _linkWebBiometrics(JSString userName);
+
+@JS('authenticateWebBiometrics')
+external JSPromise<JSBool> _authenticateWebBiometrics(JSString? credId);
+
+class PwaInstallerWeb {
   static Future<bool> checkWebBiometrics() async {
     try {
-      final jsResult = js_util.callMethod(js_util.globalThis, 'checkWebBiometrics', []);
-      final val = await js_util.promiseToFuture<dynamic>(jsResult);
-      debugPrint('[PwaInstaller] checkWebBiometrics raw: $val');
-      return val == true;
+      final result = await _checkWebBiometrics().toDart;
+      return result.toDart;
     } catch (e) {
-      debugPrint('[PwaInstaller] checkWebBiometrics error: $e');
       return false;
     }
   }
 
   static Future<String?> linkWebBiometrics(String userName) async {
     try {
-      final jsResult = js_util.callMethod(js_util.globalThis, 'linkWebBiometrics', [userName]);
-      final val = await js_util.promiseToFuture<dynamic>(jsResult);
-      debugPrint('[PwaInstaller] linkWebBiometrics raw: $val');
-      if (val == null || val == false) return null;
-      return val.toString();
+      final result = await _linkWebBiometrics(userName.toJS).toDart;
+      return result?.toDart;
     } catch (e) {
-      debugPrint('[PwaInstaller] linkWebBiometrics error: $e');
       return null;
     }
   }
 
   static Future<bool> authenticateWebBiometrics({String? credId}) async {
     try {
-      final jsResult = js_util.callMethod(js_util.globalThis, 'authenticateWebBiometrics', [credId ?? '']);
-      final val = await js_util.promiseToFuture<dynamic>(jsResult);
-      debugPrint('[PwaInstaller] authenticateWebBiometrics raw: $val');
-      return val == true;
-    } catch (e) {
-      debugPrint('[PwaInstaller] authenticateWebBiometrics error: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> installPWA() async {
-    try {
-      final jsResult = js_util.callMethod(js_util.globalThis, 'installPWA', []);
-      final val = await js_util.promiseToFuture<dynamic>(jsResult);
-      return val == true;
+      final result = await _authenticateWebBiometrics(credId?.toJS).toDart;
+      return result.toDart;
     } catch (e) {
       return false;
     }

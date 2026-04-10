@@ -73,10 +73,10 @@ class _SettingsPageState extends State<SettingsPage> {
         if (kIsWeb) {
           final prefs = await SharedPreferences.getInstance();
           final email = prefs.getString('saved_email') ?? 'usuario';
-          final credId = await PwaInstaller.linkWebBiometrics(email);
-          if (credId != null) {
+          final String? bioCredential = await PwaInstaller.linkWebBiometrics(email);
+          if (bioCredential != null && bioCredential.isNotEmpty) {
             // Guardar credId en SharedPreferences para sobrevivir limpiezas de localStorage
-            await prefs.setString('bio_cred_id', credId);
+            await prefs.setString('bio_cred_id', bioCredential);
             await prefs.setBool('use_biometrics', true);
             setState(() => _useBiometrics = true);
             if (mounted) {

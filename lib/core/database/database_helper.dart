@@ -320,8 +320,7 @@ class DatabaseHelper {
         debugPrint('[DB] v28: cashbox_sessions ya existe o error: $e');
       }
     }
-      }
-    }
+
     if (oldVersion < 30) {
       try {
         await db.execute('ALTER TABLE sales ADD COLUMN external_reference TEXT DEFAULT NULL');

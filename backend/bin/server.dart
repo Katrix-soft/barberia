@@ -4,10 +4,10 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'handlers/webhook_handler.dart';
 import 'handlers/mp_handler.dart';
+import 'middleware/rate_limiter.dart';
 import 'package:dotenv/dotenv.dart';
 
 void main() async {
-  // Cargar variables de entorno desde el archivo .env en la raíz
   final env = DotEnv(includePlatformEnvironment: true)..load(['../.env']);
   final port = int.parse(env['PORT'] ?? '8090');
   final dbPath = env['DB_PATH'] ?? '/data/pos_barber.db';
@@ -21,20 +21,27 @@ void main() async {
 
   final router = Router();
 
-  // Health check
   router.get('/health', (Request req) {
     return Response.ok('OK - BM Barber Backend v1.0\n');
   });
 
-  // Mercado Pago webhook
-  router.post('/webhook/mercadopago', webhookHandler.handle);
+  // Webhook MP — máximo 10 por minuto por IP
+  router.post('/webhook/mercadopago',
+    Pipeline().addMiddleware(rateLimiter(maxRequests: 10, windowSeconds: 60))
+      .addHandler(webhookHandler.handle));
 
-  // Mercado Pago proxy
-  router.put('/mp/order', mpHandler.crearOrder);
-  router.post('/mp/order', mpHandler.crearOrder);
-  router.delete('/mp/order', mpHandler.cancelarOrder);
-  router.get('/mp/order/status', mpHandler.obtenerEstado);
-  router.get('/mp/qr-image', mpHandler.qrImage);
+  // MP proxy — máximo 30 por minuto por IP
+  final mpRateLimited = Pipeline()
+      .addMiddleware(rateLimiter(maxRequests: 30, windowSeconds: 60));
+
+  router.put('/mp/order',
+    mpRateLimited.addHandler(mpHandler.crearOrder));
+  router.delete('/mp/order',
+    mpRateLimited.addHandler(mpHandler.cancelarOrder));
+  router.get('/mp/order/status',
+    mpRateLimited.addHandler(mpHandler.obtenerEstado));
+  router.get('/mp/qr-image',
+    mpRateLimited.addHandler(mpHandler.qrImage));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -44,11 +51,9 @@ void main() async {
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
   print('[Server] Escuchando en http://${server.address.host}:${server.port}');
 
-  // Mantiene el proceso vivo indefinidamente (evita que el main termine y Docker reinicie el contenedor)
   await ProcessSignal.sigint.watch().first;
 }
 
-/// Middleware CORS — Permite peticiones desde el frontend (Web)
 Middleware _corsMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
