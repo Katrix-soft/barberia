@@ -1,0 +1,5 @@
+window.ENV = {
+  API_URL: "${API_URL}",
+  MP_ACCESS_TOKEN: "${MP_ACCESS_TOKEN}",
+  MP_PUBLIC_KEY: "${MP_PUBLIC_KEY}"
+};
