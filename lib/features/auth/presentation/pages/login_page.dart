@@ -113,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen>
         // Restaurar credId desde SharedPreferences a localStorage si fue limpiado
         final prefs = await SharedPreferences.getInstance();
         final credId = prefs.getString('bio_cred_id');
-        final authenticated = await PwaInstaller.authenticateWebBiometrics(credId: credId);
+        final authenticated = await PwaInstaller.authenticateWebBiometrics(credId);
         if (authenticated) {
           _onBiometricAuthSuccess();
         } else {
