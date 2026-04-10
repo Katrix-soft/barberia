@@ -14,7 +14,7 @@ RUN flutter pub get
 COPY . .
 
 # Build web
-RUN flutter build web --release --web-renderer canvaskit
+RUN flutter build web --release --no-tree-shake-icons --web-renderer canvaskit
 
 # Servir con Nginx
 FROM nginx:alpine
