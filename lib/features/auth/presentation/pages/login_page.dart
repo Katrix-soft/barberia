@@ -54,13 +54,18 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 2000));
     
     try {
       bool shouldOfferBiometrics = false;
 
       if (kIsWeb) {
-        shouldOfferBiometrics = await PwaInstaller.checkWebBiometrics();
+        // Reintentar hasta 3 veces con delay si falla inicialmente
+        for (int i = 0; i < 3; i++) {
+          shouldOfferBiometrics = await PwaInstaller.checkWebBiometrics();
+          if (shouldOfferBiometrics) break;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       } else {
         final isSupported = await auth.isDeviceSupported();
         final canCheckBiometrics = await auth.canCheckBiometrics;

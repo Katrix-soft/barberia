@@ -75,14 +75,19 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _checkBiometricOptIn() async {
     final prefs = await SharedPreferences.getInstance();
-    // Consolidated key name
     final hasAsked = prefs.getBool('use_biometrics_asked') ?? false;
     if (hasAsked) return;
 
+    await Future.delayed(const Duration(milliseconds: 1000));
     bool isSupported = false;
     try {
       if (kIsWeb) {
-        isSupported = await PwaInstaller.checkWebBiometrics();
+        // Reintentar hasta 3 veces con delay
+        for (int i = 0; i < 3; i++) {
+          isSupported = await PwaInstaller.checkWebBiometrics();
+          if (isSupported) break;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       } else {
         final auth = LocalAuthentication();
         final deviceSupported = await auth.isDeviceSupported();

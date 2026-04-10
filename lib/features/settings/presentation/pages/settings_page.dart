@@ -38,12 +38,17 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkBiometricSupport() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 2000));
     
     try {
       bool isSupported = false;
       if (kIsWeb) {
-        isSupported = await PwaInstaller.checkWebBiometrics();
+        // Reintentar hasta 3 veces con delay si falla inicialmente
+        for (int i = 0; i < 3; i++) {
+          isSupported = await PwaInstaller.checkWebBiometrics();
+          if (isSupported) break;
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       } else {
         final deviceSupported = await _auth.isDeviceSupported();
         final canCheck = await _auth.canCheckBiometrics;
