@@ -1,13 +1,13 @@
 import 'dart:js_interop';
 
 @JS('checkWebBiometrics')
-external JSPromise<JSBool> _checkWebBiometrics();
+external JSPromise<JSBoolean> _checkWebBiometrics();
 
 @JS('linkWebBiometrics')
 external JSPromise<JSString?> _linkWebBiometrics(JSString userName);
 
 @JS('authenticateWebBiometrics')
-external JSPromise<JSBool> _authenticateWebBiometrics(JSString? credId);
+external JSPromise<JSBoolean> _authenticateWebBiometrics(JSString? credId);
 
 class PwaInstaller {
   static Future<bool> installPWA() async {
@@ -16,7 +16,7 @@ class PwaInstaller {
 
   static Future<bool> checkWebBiometrics() async {
     try {
-      final JSBool result = await _checkWebBiometrics().toDart;
+      final JSBoolean result = await _checkWebBiometrics().toDart;
       return result.toDart;
     } catch (e) {
       return false;
@@ -34,7 +34,7 @@ class PwaInstaller {
 
   static Future<bool> authenticateWebBiometrics({String? credId}) async {
     try {
-      final JSBool result = await _authenticateWebBiometrics(credId?.toJS).toDart;
+      final JSBoolean result = await _authenticateWebBiometrics(credId?.toJS).toDart;
       return result.toDart;
     } catch (e) {
       return false;
