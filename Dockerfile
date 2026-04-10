@@ -1,5 +1,5 @@
 # Construir la app de Flutter Web
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+FROM ghcr.io/cirruslabs/flutter:3.24.5 AS build
 WORKDIR /app
 
 # Habilitar web
@@ -13,8 +13,8 @@ RUN flutter pub get
 # Copiar código
 COPY . .
 
-# Build web
-RUN flutter build web --release --no-tree-shake-icons --web-renderer canvaskit
+# Build web - Simplificado para evitar exit code 64
+RUN flutter build web --release --no-tree-shake-icons
 
 # Servir con Nginx
 FROM nginx:alpine
