@@ -32,6 +32,9 @@ services:
       - DB_PATH=/data/pos_barber.db
       # El token se inyecta desde el .env del VPS o secrets del compose
       - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+      - MP_USER_ID=${MP_USER_ID}
+      - MP_EXTERNAL_POS_ID=${MP_EXTERNAL_POS_ID}
+      - MP_QR_IMAGE=${MP_QR_IMAGE}
       - MP_WEBHOOK_SECRET=${MP_WEBHOOK_SECRET}
     volumes:
       # Montar el directorio de datos donde está la DB de la app
