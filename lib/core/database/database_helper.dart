@@ -1,9 +1,11 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, defaultTargetPlatform, TargetPlatform;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/version_info.dart';
 
-import 'database_factory_io.dart' if (dart.library.js_interop) 'database_factory_web.dart';
+import 'db_init_stub.dart' 
+    if (dart.library.io) 'db_init_io.dart' 
+    if (dart.library.js_interop) 'db_init_web.dart' as platform_db;
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -24,7 +26,7 @@ class DatabaseHelper {
     Database db;
     if (kIsWeb) {
       debugPrint('[DB] Platform: Web');
-      databaseFactory = getWebDatabaseFactory();
+      await platform_db.initializeDatabaseFactory();
       db = await openDatabase(
         'pos_barber.db',
         version: VersionInfo.dbVersion,
@@ -38,8 +40,7 @@ class DatabaseHelper {
                        
       if (isDesktop) {
         debugPrint('[DB] Platform: Desktop');
-        sqfliteFfiInit();
-        databaseFactory = databaseFactoryFfi;
+        await platform_db.initializeDatabaseFactory();
       } else {
         debugPrint('[DB] Platform: Mobile');
       }

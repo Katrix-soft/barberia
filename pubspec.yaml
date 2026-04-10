@@ -52,7 +52,7 @@ dependencies:
   excel: ^4.0.6
   
   # QR Scanner - Solo mobile (condicional en código)
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.2.0
   
   # Auth biométrica - Mobile + Desktop
   local_auth: ^2.3.0

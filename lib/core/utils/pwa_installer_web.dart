@@ -9,10 +9,14 @@ external JSPromise<JSString?> _linkWebBiometrics(JSString userName);
 @JS('authenticateWebBiometrics')
 external JSPromise<JSBool> _authenticateWebBiometrics(JSString? credId);
 
-class PwaInstallerWeb {
+class PwaInstaller {
+  static Future<bool> installPWA() async {
+    return false; 
+  }
+
   static Future<bool> checkWebBiometrics() async {
     try {
-      final result = await _checkWebBiometrics().toDart;
+      final JSBool result = await _checkWebBiometrics().toDart;
       return result.toDart;
     } catch (e) {
       return false;
@@ -21,7 +25,7 @@ class PwaInstallerWeb {
 
   static Future<String?> linkWebBiometrics(String userName) async {
     try {
-      final result = await _linkWebBiometrics(userName.toJS).toDart;
+      final JSString? result = await _linkWebBiometrics(userName.toJS).toDart;
       return result?.toDart;
     } catch (e) {
       return null;
@@ -30,7 +34,7 @@ class PwaInstallerWeb {
 
   static Future<bool> authenticateWebBiometrics({String? credId}) async {
     try {
-      final result = await _authenticateWebBiometrics(credId?.toJS).toDart;
+      final JSBool result = await _authenticateWebBiometrics(credId?.toJS).toDart;
       return result.toDart;
     } catch (e) {
       return false;

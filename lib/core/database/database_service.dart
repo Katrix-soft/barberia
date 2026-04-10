@@ -1,23 +1,15 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:path/path.dart';
-import 'dart:io' show Platform;
+import 'db_init_stub.dart' 
+    if (dart.library.io) 'db_init_io.dart' 
+    if (dart.library.js_interop) 'db_init_web.dart' as platform_db;
 
 class DatabaseService {
   static Database? _database;
 
   static Future<void> init() async {
-    if (kIsWeb) {
-      // Web
-      databaseFactory = databaseFactoryFfiWeb;
-    } else if (Platform.isWindows || Platform.isLinux) {
-      // Desktop
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-    // Android/iOS usan sqflite normal
+    await platform_db.initializeDatabaseFactory();
   }
 
   static Future<Database> get database async {
