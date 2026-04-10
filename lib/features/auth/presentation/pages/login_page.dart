@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometrics() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 300));
     try {
       bool isSupported = false;
       if (kIsWeb) {
@@ -208,12 +208,23 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _onBiometricAuthSuccess() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      await _loadSavedCredentials();
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('saved_email') ?? '';
+    final savedPassword = prefs.getString('saved_password') ?? '';
 
-    if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-      _submitLogin();
+    if (savedEmail.isNotEmpty && savedPassword.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          _passwordController.text = savedPassword;
+        });
+        _submitLogin();
+      }
+    } else {
+      // No hay credenciales guardadas, mostrar formulario
+      if (mounted) {
+        setState(() => _showBiometricOnly = false);
+      }
     }
   }
 
