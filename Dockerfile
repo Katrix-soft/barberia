@@ -13,8 +13,8 @@ RUN flutter pub get
 # Copiar el resto del código
 COPY . .
 
-# Build web - Usamos canvaskit para mejor fidelidad visual
-RUN flutter build web --release --no-tree-shake-icons --web-renderer canvaskit
+# Build web - La versión actual selecciona el renderer óptimo automáticamente
+RUN flutter build web --release --no-tree-shake-icons
 
 # Runtime stage
 FROM nginx:alpine
