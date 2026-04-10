@@ -28,7 +28,6 @@ dependencies:
   path: ^1.9.0
   intl: ^0.20.2
   responsive_builder: ^0.7.1
-  flutter_dotenv: ^6.0.0
   crypto: ^3.0.3
   
   # Network

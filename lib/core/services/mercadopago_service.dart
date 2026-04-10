@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MercadoPagoService {
   /// Cambiá _devHost por tu IP local cuando probás en Android/iOS físico.
   /// En prod apunta a tu dominio real.
   static const _devHost = 'localhost:8090'; // ← TU IP LOCAL
-  static const _prodHost = 'tudominio.com';     // ← TU DOMINIO EN PROD
+  static const _prodHost = 'barber.katrix.com.ar'; // ← TU DOMINIO EN PROD
   static const _isDev = false;                  // ← prod
 
   static String get _backendBase {

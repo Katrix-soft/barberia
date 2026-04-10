@@ -1,6 +1,6 @@
 {
-  "name": "BM BARBER",
-  "short_name": "BM BARBER",
+  "name": "POS Barber",
+  "short_name": "POS Barber",
   "start_url": "/?source=pwa",
   "scope": "/",
   "id": "katrix-barber-luxury-pos",

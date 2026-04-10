@@ -37,6 +37,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../customers/domain/entities/customer.dart';
 import '../../../help/presentation/pages/help_page.dart';
 import '../../../auth/presentation/pages/admin_profile_page.dart';
+import '../../../../core/widgets/barcode_scanner_page.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});
@@ -2357,85 +2358,4 @@ class _PaymentMethodButton extends StatelessWidget {
   }
 }
 
-class BarcodeScannerPage extends StatefulWidget {
-  const BarcodeScannerPage({super.key});
 
-  @override
-  State<BarcodeScannerPage> createState() => _BarcodeScannerPageState();
-}
-
-class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
-  final MobileScannerController controller = MobileScannerController(
-    formats: [BarcodeFormat.all],
-  );
-  bool _isScanned = false;
-
-  @override
-  void initState() {
-    super.initState();
-    controller.start(); // Forzar encendido de camara en nativo (Android/iOS)
-  }
-
-  @override
-  void dispose() {
-    controller.stop();
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Escanear'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: (capture) {
-              if (_isScanned) return;
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? code = barcodes.first.rawValue;
-                if (code != null) {
-                  _isScanned = true;
-                  Navigator.pop(context, code);
-                }
-              }
-            },
-          ),
-          // Scanner Overlay
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFC5A028), width: 3),
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: IconButton(
-                onPressed: () => controller.toggleTorch(),
-                icon: const Icon(
-                  Icons.flashlight_on_rounded,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

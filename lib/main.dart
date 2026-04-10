@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart' as flutter_dotenv;
 import 'core/theme/app_theme.dart';
 import 'core/theme/bloc/theme_bloc.dart';
 import 'core/theme/bloc/theme_event.dart';
@@ -32,7 +31,6 @@ void main() async {
   await DatabaseService.init();
   await initializeDateFormatting('es_ES', null);
   await di.init();
-  await flutter_dotenv.dotenv.load(fileName: ".env");
   
   // CRITICAL: Guarantee database is ready and 'nacho' is seeded BEFORE UI
   try {
