@@ -25,8 +25,11 @@ import 'injection_container.dart' as di;
 import 'core/widgets/force_update_guard.dart';
 import 'core/database/database_helper.dart';
 
+import 'core/database/database_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseService.init();
   await initializeDateFormatting('es_ES', null);
   await di.init();
   await flutter_dotenv.dotenv.load(fileName: ".env");
