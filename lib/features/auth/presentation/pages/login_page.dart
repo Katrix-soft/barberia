@@ -215,19 +215,18 @@ class _LoginScreenState extends State<LoginScreen>
     final savedEmail = prefs.getString('saved_email') ?? '';
     final savedPassword = prefs.getString('saved_password') ?? '';
 
-    if (savedEmail.isNotEmpty && savedPassword.isNotEmpty) {
-      if (mounted) {
-        setState(() {
-          _emailController.text = savedEmail;
-          _passwordController.text = savedPassword;
-        });
-        _submitLogin();
-      }
-    } else {
-      // No hay credenciales guardadas, mostrar formulario
+    if (savedEmail.isEmpty || savedPassword.isEmpty) {
       if (mounted) {
         setState(() => _showBiometricOnly = false);
       }
+      return;
+    }
+
+    // Direct submission to Bloc to avoid race conditions with UI controllers
+    if (mounted) {
+      context.read<AuthBloc>().add(
+            LoginSubmitted(savedEmail.trim(), savedPassword),
+          );
     }
   }
 
