@@ -12,6 +12,7 @@ services:
       - npm_network
     environment:
       - TZ=America/Argentina/Buenos_Aires
+      - API_URL=http://barber_backend:8090
 
   # ─── Backend Dart/Shelf — Webhooks y API ──────────────────────────
   barber_backend:
