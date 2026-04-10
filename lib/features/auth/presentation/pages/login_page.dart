@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   final LocalAuthentication auth = LocalAuthentication();
   bool _isBiometricSupported = false;
+  bool _showBiometricOnly = false;
   bool _obscurePassword = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -81,6 +82,10 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       if (isSupported && useBiometrics && credId != null) {
+        setState(() {
+          _isBiometricSupported = true;
+          _showBiometricOnly = true; // ocultar user/pass por defecto
+        });
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) _authenticateWithBiometrics();
         });
@@ -176,7 +181,10 @@ class _LoginScreenState extends State<LoginScreen>
           }
           final prefs2 = await SharedPreferences.getInstance();
           await prefs2.setBool('use_biometrics', false);
-          setState(() => _isBiometricSupported = false);
+          setState(() {
+            _isBiometricSupported = false;
+            _showBiometricOnly = false; // mostrar user/pass como fallback
+          });
         }
         return;
       }
@@ -299,57 +307,59 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 48),
-                        Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1A1A1A).withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.2)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _buildBrandingField(
-                                controller: _emailController,
-                                label: 'Usuario o Email',
-                                icon: Icons.person_outline_rounded,
-                              ),
-                              const SizedBox(height: 24),
-                              _buildBrandingField(
-                                controller: _passwordController,
-                                label: 'Contraseña',
-                                icon: Icons.lock_outline_rounded,
-                                isPassword: true,
-                                obscureText: _obscurePassword,
-                                onSuffixTap: () => setState(() => _obscurePassword = !_obscurePassword),
-                              ),
-                              const SizedBox(height: 32),
-                              BlocBuilder<AuthBloc, AuthState>(
-                                builder: (context, state) {
-                                  final isLoading = state is AuthLoading;
-                                  return ElevatedButton(
-                                    onPressed: isLoading ? null : _submitLogin,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFC5A028),
-                                      minimumSize: const Size(double.infinity, 58),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    ),
-                                    child: isLoading
-                                        ? const CircularProgressIndicator(color: Colors.black)
-                                        : Text(
-                                            'INICIAR SESIÓN',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.black,
+                        if (!_showBiometricOnly) ...[
+                          Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A1A).withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.2)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildBrandingField(
+                                  controller: _emailController,
+                                  label: 'Usuario o Email',
+                                  icon: Icons.person_outline_rounded,
+                                ),
+                                const SizedBox(height: 24),
+                                _buildBrandingField(
+                                  controller: _passwordController,
+                                  label: 'Contraseña',
+                                  icon: Icons.lock_outline_rounded,
+                                  isPassword: true,
+                                  obscureText: _obscurePassword,
+                                  onSuffixTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                                const SizedBox(height: 32),
+                                BlocBuilder<AuthBloc, AuthState>(
+                                  builder: (context, state) {
+                                    final isLoading = state is AuthLoading;
+                                    return ElevatedButton(
+                                      onPressed: isLoading ? null : _submitLogin,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFC5A028),
+                                        minimumSize: const Size(double.infinity, 58),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      ),
+                                      child: isLoading
+                                          ? const CircularProgressIndicator(color: Colors.black)
+                                          : Text(
+                                              'INICIAR SESIÓN',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w900,
+                                                color: Colors.black,
+                                              ),
                                             ),
-                                          ),
-                                  );
-                                },
-                              ),
-                            ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                         if (_isBiometricSupported) ...[
                           const SizedBox(height: 32),
                           InkWell(
@@ -375,6 +385,16 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                           ),
+                          if (_showBiometricOnly) ...[
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () => setState(() => _showBiometricOnly = false),
+                              child: Text(
+                                'Ingresar con contraseña',
+                                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13),
+                              ),
+                            ),
+                          ],
                         ],
                         const SizedBox(height: 48),
                         Text(
