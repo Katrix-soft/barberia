@@ -1,14 +1,15 @@
 import 'dart:js_util' as js_util;
 import 'dart:js' as js;
+import 'package:flutter/foundation.dart';
 
 class PwaInstaller {
   static Future<bool> installPWA() async {
     try {
       if (!js.context.hasProperty('installPWA')) return false;
       final dynamic result = js.context.callMethod('installPWA');
-      if (result != null && js_util.hasProperty(result, 'then')) {
-        final val = await js_util.promiseToFuture(result);
-        return val == true;
+      if (result != null && js_util.hasProperty(result as Object, 'then')) {
+        final val = await js_util.promiseToFuture<dynamic>(result);
+        return val == true || val.toString() == 'true';
       }
       return result == true;
     } catch (e) {
@@ -20,28 +21,30 @@ class PwaInstaller {
     try {
       if (!js.context.hasProperty('linkWebBiometrics')) return null;
       final dynamic result = js.context.callMethod('linkWebBiometrics', [userName]);
-      if (result != null && js_util.hasProperty(result, 'then')) {
-        final val = await js_util.promiseToFuture(result);
-        if (val == null || val == false) return null;
+      if (result != null && js_util.hasProperty(result as Object, 'then')) {
+        final val = await js_util.promiseToFuture<dynamic>(result);
+        if (val == null || val == false || val.toString() == 'false') return null;
         return val.toString();
       }
       if (result == null || result == false) return null;
       return result.toString();
     } catch (e) {
+      debugPrint('[PwaInstaller] linkWebBiometrics error: $e');
       return null;
     }
   }
 
-  static Future<bool> authenticateWebBiometrics(String? credId) async {
+  static Future<bool> authenticateWebBiometrics({String? credId}) async {
     try {
       if (!js.context.hasProperty('authenticateWebBiometrics')) return false;
       final dynamic result = js.context.callMethod('authenticateWebBiometrics', [credId ?? '']);
-      if (result != null && js_util.hasProperty(result, 'then')) {
-        final val = await js_util.promiseToFuture(result);
-        return val == true;
+      if (result != null && js_util.hasProperty(result as Object, 'then')) {
+        final val = await js_util.promiseToFuture<dynamic>(result);
+        return val == true || val.toString() == 'true';
       }
-      return result == true;
+      return result == true || result.toString() == 'true';
     } catch (e) {
+      debugPrint('[PwaInstaller] authenticateWebBiometrics error: $e');
       return false;
     }
   }
@@ -50,12 +53,13 @@ class PwaInstaller {
     try {
       if (!js.context.hasProperty('checkWebBiometrics')) return false;
       final dynamic result = js.context.callMethod('checkWebBiometrics');
-      if (result != null && js_util.hasProperty(result, 'then')) {
-        final val = await js_util.promiseToFuture(result);
-        return val == true;
+      if (result != null && js_util.hasProperty(result as Object, 'then')) {
+        final val = await js_util.promiseToFuture<dynamic>(result);
+        return val == true || val.toString() == 'true';
       }
-      return result == true;
+      return result == true || result.toString() == 'true';
     } catch (e) {
+      debugPrint('[PwaInstaller] checkWebBiometrics error: $e');
       return false;
     }
   }
