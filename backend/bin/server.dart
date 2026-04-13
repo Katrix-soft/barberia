@@ -4,6 +4,7 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 import 'handlers/webhook_handler.dart';
 import 'handlers/mp_handler.dart';
+import 'handlers/mercadopago_oauth_handler.dart';
 import 'middleware/rate_limiter.dart';
 import 'package:dotenv/dotenv.dart';
 
@@ -18,6 +19,16 @@ void main() async {
 
   final webhookHandler = WebhookHandler(dbPath: dbPath);
   final mpHandler = MpHandler(env);
+
+  // Configurar OAuth handler para MercadoPago Connect
+  final oauthHandler = MercadoPagoOAuthHandler(
+    clientId: env['MP_CLIENT_ID'] ?? '4551113108292732',
+    clientSecret: env['MP_CLIENT_SECRET'] ?? '',
+    redirectUri: env['MP_REDIRECT_URI'] ?? 'https://barber.katrix.com.ar/oauth/callback',
+  );
+
+  print('[OAuth] URL de autorización:');
+  print('   ${oauthHandler.getAuthorizationUrl()}');
 
   final router = Router();
 
@@ -42,6 +53,9 @@ void main() async {
     mpRateLimited.addHandler(mpHandler.obtenerEstado));
   router.get('/mp/qr-image',
     mpRateLimited.addHandler(mpHandler.qrImage));
+
+  // OAuth routes — MercadoPago Connect
+  router.mount('/', oauthHandler.router);
 
   final handler = Pipeline()
       .addMiddleware(logRequests())

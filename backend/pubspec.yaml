@@ -1,6 +1,6 @@
 name: barber_backend
 description: Backend server for BM Barber - handles Mercado Pago webhooks and other API logic.
-version: 1.1.1
+version: 1.2.0
 publish_to: none
 
 environment:
