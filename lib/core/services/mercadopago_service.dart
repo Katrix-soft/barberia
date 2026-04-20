@@ -27,25 +27,49 @@ class MercadoPagoService {
     String externalReference,
     double monto,
     String descripcion,
-  ) async {
+  ) async =>
+      (await crearOrderConQr(externalReference, monto, descripcion)) != null;
+
+  /// Crea la orden en MP y retorna el [qr_data] string listo para renderizar
+  /// con qr_flutter. Retorna null si falla.
+  Future<String?> crearOrderConQr(
+    String externalReference,
+    double monto,
+    String descripcion, {
+    List<Map<String, dynamic>>? items,
+  }) async {
     final url = Uri.parse('$_backendBase/order');
+
+    final List<Map<String, dynamic>> orderItems = items != null && items.isNotEmpty
+        ? items.map((item) => {
+              'sku_number': externalReference,
+              'category': 'services',
+              'title': item['titulo'] ?? descripcion,
+              'description': 'Servicio de barbería',
+              'unit_price': (item['precio'] as num).toDouble(),
+              'quantity': item['cantidad'] ?? 1,
+              'unit_measure': 'unit',
+              'total_amount': (item['precio'] as num).toDouble() * (item['cantidad'] ?? 1),
+            }).toList()
+        : [
+            {
+              'sku_number': externalReference,
+              'category': 'services',
+              'title': descripcion,
+              'description': 'Servicio de barbería',
+              'unit_price': monto,
+              'quantity': 1,
+              'unit_measure': 'unit',
+              'total_amount': monto,
+            }
+          ];
+
     final body = json.encode({
-      "external_reference": externalReference,
-      "title": "Turno BM Barber",
-      "description": descripcion,
-      "total_amount": monto,
-      "items": [
-        {
-          "sku_number": externalReference,
-          "category": "services",
-          "title": descripcion,
-          "description": "Servicio de barbería",
-          "unit_price": monto,
-          "quantity": 1,
-          "unit_measure": "unit",
-          "total_amount": monto,
-        }
-      ],
+      'external_reference': externalReference,
+      'title': 'Turno BM Barber',
+      'description': descripcion,
+      'total_amount': monto,
+      'items': orderItems,
     });
 
     try {
@@ -53,12 +77,19 @@ class MercadoPagoService {
           .put(url, headers: _headers, body: body)
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode >= 200 && response.statusCode < 300) return true;
-      debugPrint('[MP] Error crearOrder: ${response.statusCode} - ${response.body}');
-      return false;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final qrData = data['qr_data'] as String?;
+        if (qrData != null && qrData.isNotEmpty) return qrData;
+        // 204 o respuesta sin qr_data — la orden se creó pero no hay dato de QR
+        debugPrint('[MP] crearOrderConQr: sin qr_data en respuesta ${response.statusCode}');
+        return null;
+      }
+      debugPrint('[MP] Error crearOrderConQr: ${response.statusCode} - ${response.body}');
+      return null;
     } catch (e) {
-      debugPrint('[MP] Excepción crearOrder: $e');
-      return false;
+      debugPrint('[MP] Excepción crearOrderConQr: $e');
+      return null;
     }
   }
 

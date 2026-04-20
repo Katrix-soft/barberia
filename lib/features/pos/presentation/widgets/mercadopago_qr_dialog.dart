@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:async';
 import '../../../../core/services/mercadopago_service.dart';
 
 class MercadopagoQRDialog extends StatefulWidget {
   final double total;
   final String orderReference;
+  /// Opcional: ítems del carrito para enriquecer la orden
+  final List<Map<String, dynamic>>? items;
+  /// Callback invocado luego de que el pago fue aprobado
+  final VoidCallback? onPagoAprobado;
 
   const MercadopagoQRDialog({
     super.key,
     required this.total,
     required this.orderReference,
+    this.items,
+    this.onPagoAprobado,
   });
 
   @override
@@ -22,6 +29,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
   bool _isLoading = true;
   bool _isError = false;
   String _statusMessage = 'Generando orden...';
+  String? _qrData; // qr_data dinámico devuelto por la API de MP
   Timer? _pollingTimer;
 
   @override
@@ -40,19 +48,22 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
     setState(() {
       _isLoading = true;
       _isError = false;
+      _qrData = null;
       _statusMessage = 'Enviando orden a caja...';
     });
 
-    final success = await _mpService.crearOrder(
+    final result = await _mpService.crearOrderConQr(
       widget.orderReference,
       widget.total,
       'Pos Barber Venta #${widget.orderReference}',
+      items: widget.items,
     );
 
-    if (success) {
+    if (result != null) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _qrData = result;
           _statusMessage = 'Esperando pago...';
         });
         _startPolling();
@@ -80,20 +91,20 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
           });
           await Future.delayed(const Duration(seconds: 1));
           if (mounted) {
+            widget.onPagoAprobado?.call();
             Navigator.of(context).pop(true);
           }
         }
-      } else if (status == 'closed' || status == 'closed_rejected') { // Closed but not approved (rejected/cancelled)
+      } else if (status == 'closed' || status == 'closed_rejected') {
         timer.cancel();
-         if (mounted) {
+        if (mounted) {
           setState(() {
-             _isError = true;
-             _statusMessage = 'Pago rechazado o cancelado';
+            _isError = true;
+            _statusMessage = 'Pago rechazado o cancelado';
           });
         }
-      } else if (status == 'error') {
-         // Optionally retry or fail
       }
+      // status == 'error' o 'pending' → seguir esperando
     });
   }
 
@@ -138,7 +149,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             if (_isLoading) ...[
               const CircularProgressIndicator(color: Color(0xFFC5A028)),
               const SizedBox(height: 16),
@@ -153,23 +164,38 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
                 ),
                 child: const Text('Reintentar'),
               ),
-            ] else ...[
+            ] else if (_qrData != null) ...[
+              // QR renderizado localmente con qr_flutter a partir del qr_data dinámico
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Image.network(
-                  _mpService.qrImageUrl,
-                  width: 200,
-                  height: 200,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
+                child: QrImageView(
+                  data: _qrData!,
+                  version: QrVersions.auto,
+                  size: 200,
+                  gapless: true,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Colors.black,
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Colors.black,
+                  ),
+                  errorStateBuilder: (ctx, error) => const Icon(
                     Icons.qr_code_2,
                     size: 200,
                     color: Colors.black87,
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Escaneá con Mercado Pago',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
               ),
             ],
 

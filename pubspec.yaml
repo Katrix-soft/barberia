@@ -53,6 +53,9 @@ dependencies:
   # QR Scanner - Solo mobile (condicional en código)
   mobile_scanner: ^7.2.0
   
+  # QR Generator - Render QR codes from MP qr_data string
+  qr_flutter: ^4.1.0
+  
   # Auth biométrica - Mobile + Desktop
   local_auth: ^2.3.0
   local_auth_android: ^1.0.47
