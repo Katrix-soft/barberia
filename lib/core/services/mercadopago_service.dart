@@ -2,37 +2,41 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
-class MercadoPagoService {
-  /// Cambiá _devHost por tu IP local cuando probás en Android/iOS físico.
-  /// En prod apunta a tu dominio real.
-  static const _devHost = 'localhost:8090'; // ← TU IP LOCAL
-  static const _prodHost = 'barber.katrix.com.ar'; // ← TU DOMINIO EN PROD
-  static const _isDev = false;                  // ← prod
+/// Resultado de crear una orden QR en Mercado Pago.
+class MpQrResult {
+  /// String de datos para renderizar el QR con qr_flutter (puede ser null).
+  final String? qrData;
+  /// URL de imagen PNG del QR (fallback cuando qrData es null).
+  final String? qrImage;
+  /// true = usar Image.network(qrImage), false = usar QrImageView(qrData).
+  final bool usarImagen;
 
+  const MpQrResult({
+    required this.qrData,
+    required this.qrImage,
+    required this.usarImagen,
+  });
+
+  /// Tiene al menos uno de los dos valores disponibles.
+  bool get tieneQr => qrData != null || qrImage != null;
+}
+
+class MercadoPagoService {
   static String get _backendBase {
     if (kIsWeb) {
-      // En web usamos ruta relativa — Caddy hace proxy /mp/* → barber_backend:8090
+      // En web usamos ruta relativa — nginx hace proxy /mp/* → barber_backend:8090
       return '/mp';
     }
     // En Android/iOS apuntamos al dominio real
     return 'https://barber.katrix.com.ar/mp';
   }
 
-  // El QR se sirve ahora desde el backend (proxy) para evitar problemas de CORS en Web
-  String get qrImageUrl => '$_backendBase/qr-image';
-
   Map<String, String> get _headers => {'Content-Type': 'application/json'};
 
-  Future<bool> crearOrder(
-    String externalReference,
-    double monto,
-    String descripcion,
-  ) async =>
-      (await crearOrderConQr(externalReference, monto, descripcion)) != null;
-
-  /// Crea la orden en MP y retorna el [qr_data] string listo para renderizar
-  /// con qr_flutter. Retorna null si falla.
-  Future<String?> crearOrderConQr(
+  /// Crea la orden en MP.
+  /// El backend hace PASO 1 (PUT) + PASO 2 (GET al POS) para extraer qr_data.
+  /// Retorna [MpQrResult] con qr_data y/o qr_image, o null si falla.
+  Future<MpQrResult?> crearOrderConQr(
     String externalReference,
     double monto,
     String descripcion, {
@@ -40,50 +44,62 @@ class MercadoPagoService {
   }) async {
     final url = Uri.parse('$_backendBase/order');
 
-    final List<Map<String, dynamic>> orderItems = items != null && items.isNotEmpty
-        ? items.map((item) => {
-              'sku_number': externalReference,
-              'category': 'services',
-              'title': item['titulo'] ?? descripcion,
-              'description': 'Servicio de barbería',
-              'unit_price': (item['precio'] as num).toDouble(),
-              'quantity': item['cantidad'] ?? 1,
-              'unit_measure': 'unit',
-              'total_amount': (item['precio'] as num).toDouble() * (item['cantidad'] ?? 1),
-            }).toList()
-        : [
-            {
-              'sku_number': externalReference,
-              'category': 'services',
-              'title': descripcion,
-              'description': 'Servicio de barbería',
-              'unit_price': monto,
-              'quantity': 1,
-              'unit_measure': 'unit',
-              'total_amount': monto,
-            }
-          ];
+    final List<Map<String, dynamic>> orderItems =
+        items != null && items.isNotEmpty
+            ? items.asMap().entries.map((e) {
+                final idx = e.key;
+                final item = e.value;
+                final precio = (item['precio'] as num).toDouble();
+                final cantidad = (item['cantidad'] as num?)?.toInt() ?? 1;
+                return {
+                  'sku_number':   (idx + 1).toString().padLeft(3, '0'),
+                  'category':     'services',
+                  'title':        item['titulo'] ?? descripcion,
+                  'description':  item['titulo'] ?? descripcion,
+                  'unit_price':   precio,
+                  'quantity':     cantidad,
+                  'unit_measure': 'unit',
+                  'total_amount': precio * cantidad,
+                };
+              }).toList()
+            : [
+                {
+                  'sku_number':   '001',
+                  'category':     'services',
+                  'title':        descripcion,
+                  'description':  descripcion,
+                  'unit_price':   monto,
+                  'quantity':     1,
+                  'unit_measure': 'unit',
+                  'total_amount': monto,
+                }
+              ];
 
     final body = json.encode({
       'external_reference': externalReference,
-      'title': 'Turno BM Barber',
-      'description': descripcion,
-      'total_amount': monto,
-      'items': orderItems,
+      'title':              'Turno BM Barber',
+      'description':        descripcion,
+      'total_amount':       monto,
+      'items':              orderItems,
     });
 
     try {
       final response = await http
           .put(url, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 20));
+
+      debugPrint('[MP] crearOrderConQr → ${response.statusCode}: ${response.body}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        final qrData = data['qr_data'] as String?;
-        if (qrData != null && qrData.isNotEmpty) return qrData;
-        // 204 o respuesta sin qr_data — la orden se creó pero no hay dato de QR
-        debugPrint('[MP] crearOrderConQr: sin qr_data en respuesta ${response.statusCode}');
-        return null;
+        final qrData  = data['qr_data'] as String?;
+        final qrImage = data['qr_image'] as String?;
+        final usarImagen = data['usar_imagen'] as bool? ?? (qrData == null);
+        return MpQrResult(
+          qrData:     qrData,
+          qrImage:    qrImage,
+          usarImagen: usarImagen,
+        );
       }
       debugPrint('[MP] Error crearOrderConQr: ${response.statusCode} - ${response.body}');
       return null;
@@ -92,6 +108,14 @@ class MercadoPagoService {
       return null;
     }
   }
+
+  /// Alias booleano para compatibilidad con código anterior.
+  Future<bool> crearOrder(
+    String externalReference,
+    double monto,
+    String descripcion,
+  ) async =>
+      (await crearOrderConQr(externalReference, monto, descripcion))?.tieneQr ?? false;
 
   Future<bool> cancelarOrder() async {
     try {
@@ -124,10 +148,8 @@ class MercadoPagoService {
           final status = order['status'] as String?;
           if (status == 'closed') {
             final payments = order['payments'] as List?;
-            final approved =
-                payments?.any((p) => p['status'] == 'approved') ?? false;
-            final rejected =
-                payments?.any((p) => p['status'] == 'rejected') ?? false;
+            final approved = payments?.any((p) => p['status'] == 'approved') ?? false;
+            final rejected = payments?.any((p) => p['status'] == 'rejected') ?? false;
             if (approved) return 'closed_approved';
             if (rejected) return 'closed_rejected';
           }

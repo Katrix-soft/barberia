@@ -29,7 +29,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
   bool _isLoading = true;
   bool _isError = false;
   String _statusMessage = 'Generando orden...';
-  String? _qrData; // qr_data dinámico devuelto por la API de MP
+  MpQrResult? _qrResult;
   Timer? _pollingTimer;
 
   @override
@@ -48,7 +48,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
     setState(() {
       _isLoading = true;
       _isError = false;
-      _qrData = null;
+      _qrResult = null;
       _statusMessage = 'Enviando orden a caja...';
     });
 
@@ -59,11 +59,11 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
       items: widget.items,
     );
 
-    if (result != null) {
+    if (result != null && result.tieneQr) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _qrData = result;
+          _qrResult = result;
           _statusMessage = 'Esperando pago...';
         });
         _startPolling();
@@ -86,9 +86,7 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
       if (status == 'closed_approved') {
         timer.cancel();
         if (mounted) {
-          setState(() {
-            _statusMessage = '¡Pago Aprobado!';
-          });
+          setState(() { _statusMessage = '¡Pago Aprobado!'; });
           await Future.delayed(const Duration(seconds: 1));
           if (mounted) {
             widget.onPagoAprobado?.call();
@@ -104,7 +102,6 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
           });
         }
       }
-      // status == 'error' o 'pending' → seguir esperando
     });
   }
 
@@ -118,6 +115,64 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
     if (mounted) {
       Navigator.of(context).pop(false);
     }
+  }
+
+  Widget _buildQrWidget() {
+    final result = _qrResult!;
+
+    // CASO 1: tenemos qr_data → renderizar localmente con qr_flutter
+    if (!result.usarImagen && result.qrData != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: QrImageView(
+          data: result.qrData!,
+          version: QrVersions.auto,
+          size: 200,
+          gapless: true,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Colors.black,
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Colors.black,
+          ),
+          errorStateBuilder: (ctx, error) => const Icon(
+            Icons.qr_code_2,
+            size: 200,
+            color: Colors.black87,
+          ),
+        ),
+      );
+    }
+
+    // CASO 2: no hay qr_data pero hay qr_image → Image.network como fallback
+    if (result.qrImage != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Image.network(
+          result.qrImage!,
+          width: 200,
+          height: 200,
+          errorBuilder: (context, error, stackTrace) => const Icon(
+            Icons.qr_code_2,
+            size: 200,
+            color: Colors.black87,
+          ),
+        ),
+      );
+    }
+
+    // Fallback visual si llegó tieneQr pero ninguno de los dos tiene valor
+    return const Icon(Icons.qr_code_2, size: 200, color: Colors.black87);
   }
 
   @override
@@ -141,7 +196,8 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
             ),
             const SizedBox(height: 8),
             Text(
-              NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR').format(widget.total),
+              NumberFormat.currency(symbol: '\$', decimalDigits: 0, locale: 'es_AR')
+                  .format(widget.total),
               style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.w900,
@@ -164,34 +220,8 @@ class _MercadopagoQRDialogState extends State<MercadopagoQRDialog> {
                 ),
                 child: const Text('Reintentar'),
               ),
-            ] else if (_qrData != null) ...[
-              // QR renderizado localmente con qr_flutter a partir del qr_data dinámico
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: QrImageView(
-                  data: _qrData!,
-                  version: QrVersions.auto,
-                  size: 200,
-                  gapless: true,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Colors.black,
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Colors.black,
-                  ),
-                  errorStateBuilder: (ctx, error) => const Icon(
-                    Icons.qr_code_2,
-                    size: 200,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
+            ] else if (_qrResult != null) ...[
+              _buildQrWidget(),
               const SizedBox(height: 8),
               Text(
                 'Escaneá con Mercado Pago',

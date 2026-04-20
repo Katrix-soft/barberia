@@ -33,58 +33,154 @@ class MpHandler {
     return pos;
   }
 
-
   Map<String, String> get _headers => {
         'Authorization': 'Bearer $_accessToken',
         'Content-Type': 'application/json',
       };
 
-  // PUT /mp/order — Crea o actualiza la orden en el QR del POS
+  Map<String, String> get _getHeaders => {
+        'Authorization': 'Bearer $_accessToken',
+      };
+
+  // PUT /mp/order — Crea la orden en el POS y luego hace GET para obtener qr_data
+  //
+  // Lógica equivalente al mp_qr_route.js:
+  //   PASO 1: PUT a /instore/orders/qr/seller/collectors/{userId}/pos/{posId}/qrs
+  //   PASO 2: GET a /pos/{posId} para extraer qr_data del QR dinámico
+  //
+  // Respuesta: { qr_data, qr_image, referencia, usar_imagen }
   Future<Response> crearOrder(Request request) async {
     final timestamp = DateTime.now().toIso8601String();
     try {
-      final body = await request.readAsString();
-      final url = Uri.parse(
-        '$_mpBase/instore/qr/seller/collectors/$_userId/pos/$_externalPosId/orders',
+      final bodyStr = await request.readAsString();
+      final bodyMap = json.decode(bodyStr) as Map<String, dynamic>;
+
+      final monto = (bodyMap['total_amount'] as num?)?.toDouble();
+      final referencia = bodyMap['external_reference'] as String?;
+      final itemsRaw = bodyMap['items'] as List<dynamic>?;
+
+      if (monto == null || referencia == null || referencia.isEmpty) {
+        return Response(
+          400,
+          body: json.encode({'error': 'Faltan campos: total_amount, external_reference'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      // Armar los items en formato de MP
+      final List<Map<String, dynamic>> mpItems = (itemsRaw != null && itemsRaw.isNotEmpty)
+          ? itemsRaw.asMap().entries.map((e) {
+              final idx = e.key;
+              final item = e.value as Map<String, dynamic>;
+              final precio = (item['unit_price'] as num).toDouble();
+              final cantidad = (item['quantity'] as num).toInt();
+              return {
+                'sku_number':   (idx + 1).toString().padLeft(3, '0'),
+                'category':     item['category'] ?? 'services',
+                'title':        item['title'] ?? 'Servicio barbería',
+                'description':  item['description'] ?? 'Servicio barbería',
+                'unit_price':   precio,
+                'quantity':     cantidad,
+                'unit_measure': 'unit',
+                'total_amount': precio * cantidad,
+              };
+            }).toList()
+          : [
+              {
+                'sku_number':   '001',
+                'category':     'services',
+                'title':        'Servicio barbería',
+                'description':  'Servicio barbería',
+                'unit_price':   monto,
+                'quantity':     1,
+                'unit_measure': 'unit',
+                'total_amount': monto,
+              }
+            ];
+
+      final orden = {
+        'external_reference': referencia,
+        'title':              bodyMap['title'] ?? 'Pago barbería',
+        'description':        bodyMap['description'] ?? 'Pago barbería',
+        'notification_url':   'https://api.katrix.com.ar/api/mp/webhook',
+        'total_amount':       monto,
+        'items':              mpItems,
+        'cash_out':           {'amount': 0},
+      };
+
+      // ── PASO 1: PUT para crear/actualizar la orden en el POS ─────────────────
+      final putUrl = Uri.parse(
+        '$_mpBase/instore/orders/qr/seller/collectors/$_userId/pos/$_externalPosId/qrs',
       );
 
-      print('[$timestamp][MpHandler] PUT orden → $url');
+      print('[$timestamp][MpHandler] PUT orden → $putUrl');
 
-      final response = await http
-          .put(url, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 10));
+      final putResponse = await http
+          .put(putUrl, headers: _headers, body: json.encode(orden))
+          .timeout(const Duration(seconds: 15));
 
-      print('[$timestamp][MpHandler] Respuesta MP: ${response.statusCode}');
+      // MP devuelve 200 con body vacío {} — eso es normal
+      print('[$timestamp][MpHandler] PUT status: ${putResponse.statusCode} | body: ${putResponse.body}');
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        // Manejar respuestas vacías como el 204 No Content
-        if (response.statusCode == 204 || response.body.isEmpty) {
-          return Response.ok(
-            json.encode({'success': true, 'message': 'Order processed (204)'}),
-            headers: {'Content-Type': 'application/json'},
-          );
-        }
-
-        final data = json.decode(response.body);
-        return Response.ok(
-          json.encode({
-            'success': true,
-            'qr_data': data['qr_data'],
-            'id': data['id'],
+      if (putResponse.statusCode < 200 || putResponse.statusCode >= 300) {
+        dynamic errData = {};
+        try { errData = json.decode(putResponse.body); } catch (_) {}
+        return Response(
+          putResponse.statusCode,
+          body: json.encode({
+            'error':   (errData is Map ? errData['message'] : null) ?? 'Error MP PUT',
+            'detalle': errData,
           }),
           headers: {'Content-Type': 'application/json'},
         );
       }
 
-      return Response(
-        response.statusCode,
-        body: json.encode({'success': false, 'error': response.body}),
+      // ── PASO 2: GET al POS para obtener qr_data ──────────────────────────────
+      final getUrl = Uri.parse('$_mpBase/pos/$_externalPosId');
+
+      print('[$timestamp][MpHandler] GET POS → $getUrl');
+
+      final getResponse = await http
+          .get(getUrl, headers: _getHeaders)
+          .timeout(const Duration(seconds: 10));
+
+      print('[$timestamp][MpHandler] GET POS status: ${getResponse.statusCode} | body: ${getResponse.body}');
+
+      Map<String, dynamic> posData = {};
+      try { posData = json.decode(getResponse.body) as Map<String, dynamic>; } catch (_) {}
+
+      // Extraer qr_data — puede estar en campos distintos según la versión de la API
+      final qrMap  = posData['qr'] as Map<String, dynamic>?;
+      final qrData = qrMap?['template_document'] as String?
+                  ?? posData['qr_code'] as String?
+                  ?? posData['template'] as String?;
+
+      final qrImage = qrMap?['template_image'] as String?
+                   ?? env['MP_QR_IMAGE'];
+
+      if (qrData == null && qrImage == null) {
+        return Response.internalServerError(
+          body: json.encode({
+            'error': 'MP no devolvió QR data. Verificá que el POS tenga modelo QR dinámico habilitado.',
+            'pos_response': posData,
+          }),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      return Response.ok(
+        json.encode({
+          'qr_data':     qrData,      // string para generar QR con qr_flutter (puede ser null)
+          'qr_image':    qrImage,     // URL imagen PNG de MP
+          'referencia':  referencia,
+          'usar_imagen': qrData == null, // true = Flutter muestra Image.network
+        }),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
       print('[$timestamp][MpHandler] ❌ Excepción crearOrder: $e');
       return Response.internalServerError(
-        body: json.encode({'success': false, 'error': e.toString()}),
+        body: json.encode({'error': 'Error interno', 'detalle': e.toString()}),
         headers: {'Content-Type': 'application/json'},
       );
     }
@@ -95,7 +191,7 @@ class MpHandler {
     final timestamp = DateTime.now().toIso8601String();
     try {
       final url = Uri.parse(
-        '$_mpBase/instore/qr/seller/collectors/$_userId/pos/$_externalPosId/orders',
+        '$_mpBase/instore/orders/qr/seller/collectors/$_userId/pos/$_externalPosId/qrs',
       );
 
       print('[$timestamp][MpHandler] DELETE orden → $url');
@@ -161,10 +257,17 @@ class MpHandler {
     }
   }
 
-  // Proxy para la imagen del QR de Mercado Pago (evita problemas de CORS en web)
+  // Proxy para la imagen estática del QR (fallback, evita CORS en web)
   Future<Response> qrImage(Request request) async {
     try {
-      final imageUrl = env['MP_QR_IMAGE'] ?? 'https://www.mercadopago.com/instore/merchant/qr/129444110/7ac43d9f1584427a85ee8d6be1ef464278ec8de688114ffab6fc9df555282748.png';
+      final imageUrl = env['MP_QR_IMAGE'];
+      if (imageUrl == null || imageUrl.isEmpty) {
+        return Response(
+          404,
+          body: json.encode({'error': 'MP_QR_IMAGE no configurado'}),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
       final response = await http.get(Uri.parse(imageUrl)).timeout(const Duration(seconds: 10));
       return Response(
         response.statusCode,
