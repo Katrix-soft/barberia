@@ -38,15 +38,10 @@ class MpHandler {
         'Content-Type': 'application/json',
       };
 
-  Map<String, String> get _getHeaders => {
-        'Authorization': 'Bearer $_accessToken',
-      };
-
-  // PUT /mp/order — Crea la orden en el POS y luego hace GET para obtener qr_data
+  // PUT /mp/order — Crea la orden en el POS y retorna qr_data dinámico
   //
-  // Lógica equivalente al mp_qr_route.js:
-  //   PASO 1: PUT a /instore/orders/qr/seller/collectors/{userId}/pos/{posId}/qrs
-  //   PASO 2: GET a /pos/{posId} para extraer qr_data del QR dinámico
+  // MP devuelve qr_data directamente en la respuesta del PUT:
+  //   { "in_store_order_id": "...", "qr_data": "00020101..." }
   //
   // Respuesta: { qr_data, qr_image, referencia, usar_imagen }
   Future<Response> crearOrder(Request request) async {
@@ -68,47 +63,48 @@ class MpHandler {
       }
 
       // Armar los items en formato de MP
-      final List<Map<String, dynamic>> mpItems = (itemsRaw != null && itemsRaw.isNotEmpty)
-          ? itemsRaw.asMap().entries.map((e) {
-              final idx = e.key;
-              final item = e.value as Map<String, dynamic>;
-              final precio = (item['unit_price'] as num).toDouble();
-              final cantidad = (item['quantity'] as num).toInt();
-              return {
-                'sku_number':   (idx + 1).toString().padLeft(3, '0'),
-                'category':     item['category'] ?? 'services',
-                'title':        item['title'] ?? 'Servicio barbería',
-                'description':  item['description'] ?? 'Servicio barbería',
-                'unit_price':   precio,
-                'quantity':     cantidad,
-                'unit_measure': 'unit',
-                'total_amount': precio * cantidad,
-              };
-            }).toList()
-          : [
-              {
-                'sku_number':   '001',
-                'category':     'services',
-                'title':        'Servicio barbería',
-                'description':  'Servicio barbería',
-                'unit_price':   monto,
-                'quantity':     1,
-                'unit_measure': 'unit',
-                'total_amount': monto,
-              }
-            ];
+      final List<Map<String, dynamic>> mpItems =
+          (itemsRaw != null && itemsRaw.isNotEmpty)
+              ? itemsRaw.asMap().entries.map((e) {
+                  final idx = e.key;
+                  final item = e.value as Map<String, dynamic>;
+                  final precio = (item['unit_price'] as num).toDouble();
+                  final cantidad = (item['quantity'] as num).toInt();
+                  return {
+                    'sku_number': (idx + 1).toString().padLeft(3, '0'),
+                    'category': item['category'] ?? 'services',
+                    'title': item['title'] ?? 'Servicio barbería',
+                    'description': item['description'] ?? 'Servicio barbería',
+                    'unit_price': precio,
+                    'quantity': cantidad,
+                    'unit_measure': 'unit',
+                    'total_amount': precio * cantidad,
+                  };
+                }).toList()
+              : [
+                  {
+                    'sku_number': '001',
+                    'category': 'services',
+                    'title': 'Servicio barbería',
+                    'description': 'Servicio barbería',
+                    'unit_price': monto,
+                    'quantity': 1,
+                    'unit_measure': 'unit',
+                    'total_amount': monto,
+                  }
+                ];
 
       final orden = {
         'external_reference': referencia,
-        'title':              bodyMap['title'] ?? 'Pago barbería',
-        'description':        bodyMap['description'] ?? 'Pago barbería',
-        'notification_url':   'https://api.katrix.com.ar/api/mp/webhook',
-        'total_amount':       monto,
-        'items':              mpItems,
-        'cash_out':           {'amount': 0},
+        'title': bodyMap['title'] ?? 'Pago barbería',
+        'description': bodyMap['description'] ?? 'Pago barbería',
+        'notification_url': 'https://barber.katrix.com.ar/webhook/mercadopago',
+        'total_amount': monto,
+        'items': mpItems,
+        'cash_out': {'amount': 0},
       };
 
-      // ── PASO 1: PUT para crear/actualizar la orden en el POS ─────────────────
+      // PUT para crear/actualizar la orden en el POS
       final putUrl = Uri.parse(
         '$_mpBase/instore/orders/qr/seller/collectors/$_userId/pos/$_externalPosId/qrs',
       );
@@ -119,33 +115,50 @@ class MpHandler {
           .put(putUrl, headers: _headers, body: json.encode(orden))
           .timeout(const Duration(seconds: 15));
 
-      // MP devuelve 200 con body vacío {} — eso es normal
       print('[$timestamp][MpHandler] PUT status: ${putResponse.statusCode} | body: ${putResponse.body}');
 
       if (putResponse.statusCode < 200 || putResponse.statusCode >= 300) {
         dynamic errData = {};
-        try { errData = json.decode(putResponse.body); } catch (_) {}
+        try {
+          errData = json.decode(putResponse.body);
+        } catch (_) {}
         return Response(
           putResponse.statusCode,
           body: json.encode({
-            'error':   (errData is Map ? errData['message'] : null) ?? 'Error MP PUT',
+            'error': (errData is Map ? errData['message'] : null) ?? 'Error MP PUT',
             'detalle': errData,
           }),
           headers: {'Content-Type': 'application/json'},
         );
       }
 
-      // qr_data viene directo en la respuesta del PUT — no necesitamos GET al POS
+      // qr_data viene directo en la respuesta del PUT
       Map<String, dynamic> putData = {};
-      try { putData = json.decode(putResponse.body) as Map<String, dynamic>; } catch (_) {}
+      try {
+        putData = json.decode(putResponse.body) as Map<String, dynamic>;
+      } catch (_) {}
+
       final qrData = putData['qr_data'] as String?;
+
+      if (qrData == null || qrData.isEmpty) {
+        print('[$timestamp][MpHandler] ⚠️  PUT no devolvió qr_data. Body: ${putResponse.body}');
+        return Response.internalServerError(
+          body: json.encode({
+            'error': 'MP no devolvió qr_data. Verificá que el POS tenga fixed_amount: false.',
+            'put_response': putData,
+          }),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      print('[$timestamp][MpHandler] ✅ qr_data obtenido correctamente');
 
       return Response.ok(
         json.encode({
-          'qr_data':     qrData,
-          'qr_image':    null,
-          'referencia':  referencia,
-          'usar_imagen': false,
+          'qr_data': qrData,       // string para generar QR con qr_flutter
+          'qr_image': null,        // no necesario con QR dinámico
+          'referencia': referencia,
+          'usar_imagen': false,    // siempre usar qr_flutter con qr_data
         }),
         headers: {'Content-Type': 'application/json'},
       );
@@ -176,7 +189,8 @@ class MpHandler {
 
       return Response(
         response.statusCode >= 200 && response.statusCode < 300 ? 200 : response.statusCode,
-        body: json.encode({'success': response.statusCode >= 200 && response.statusCode < 300}),
+        body: json.encode(
+            {'success': response.statusCode >= 200 && response.statusCode < 300}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -240,7 +254,9 @@ class MpHandler {
           headers: {'Content-Type': 'application/json'},
         );
       }
-      final response = await http.get(Uri.parse(imageUrl)).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse(imageUrl))
+          .timeout(const Duration(seconds: 10));
       return Response(
         response.statusCode,
         body: response.bodyBytes,
