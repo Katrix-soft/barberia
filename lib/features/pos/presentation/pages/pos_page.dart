@@ -2086,16 +2086,26 @@ class _PosPageState extends State<PosPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Column(
           children: [
-            Icon(Icons.check_circle_outline, color: Colors.green, size: 64),
+            Icon(Icons.verified_rounded, color: Color(0xFF25D366), size: 72),
             SizedBox(height: 16),
-            Text('¡Venta Exitosa!', textAlign: TextAlign.center),
+            Text(
+              'BM Morales',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              '¡Cobro Exitoso!',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'La venta se ha procesado correctamente.',
+              'La venta se ha registrado correctamente en el sistema.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -2130,17 +2140,18 @@ class _PosPageState extends State<PosPage> {
                   }
                 },
                 icon: const FaIcon(FontAwesomeIcons.whatsapp),
-                label: const Text('Enviar Ticket WhatsApp'),
+                label: const Text('Enviar Ticket WhatsApp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cerrar'),
+                child: const Text('Cerrar', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),
@@ -2151,21 +2162,22 @@ class _PosPageState extends State<PosPage> {
 
   Future<void> _sendWhatsAppReceipt(Customer? customer, Sale sale, {String? overridePhone}) async {
     final StringBuffer buffer = StringBuffer();
-    buffer.writeln('✂️ *Ticket Digital - Barber POS* ✂️');
+    buffer.writeln('💈 *BM MORALES* 💈');
+    buffer.writeln('--------------------------------');
     final customerName = customer?.name ?? 'Cliente';
-    buffer.writeln('Hola *$customerName*, gracias por tu visita.');
+    buffer.writeln('Hola *$customerName*, ¡gracias por elegirnos!');
     buffer.writeln('');
-    buffer.writeln('*Detalle:*');
+    buffer.writeln('✂️ *Detalle de tu servicio:*');
     for (var item in sale.items) {
       buffer.writeln(
-        '- ${item.productName} x ${item.quantity} (\$${item.total.toStringAsFixed(0)})',
+        '▫️ ${item.productName} x${item.quantity} (\$${item.total.toStringAsFixed(0)})',
       );
     }
     buffer.writeln('');
-    buffer.writeln('*Total:* \$${sale.total.toStringAsFixed(0)}');
-    buffer.writeln('*Pago:* ${sale.paymentMethod.name.toUpperCase()}');
-    buffer.writeln('');
-    buffer.writeln('¡Te esperamos pronto! 💈');
+    buffer.writeln('💰 *Total Abonado:* \$${sale.total.toStringAsFixed(0)}');
+    buffer.writeln('💳 *Medio de pago:* ${sale.paymentMethod.name.toUpperCase()}');
+    buffer.writeln('--------------------------------');
+    buffer.writeln('🔥 ¡Te esperamos pronto para tu próximo corte! 🔥');
 
     final String message = Uri.encodeComponent(buffer.toString());
     
