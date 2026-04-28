@@ -2076,6 +2076,9 @@ class _PosPageState extends State<PosPage> {
   }
 
   void _showSuccessDialog(BuildContext context, PosState state) {
+    String initialPhone = state.lastConfirmedCustomer?.phone ?? '';
+    final phoneController = TextEditingController(text: initialPhone);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -2095,6 +2098,20 @@ class _PosPageState extends State<PosPage> {
               'La venta se ha procesado correctamente.',
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Número de WhatsApp',
+                hintText: 'Ej: 1123456789',
+                prefixIcon: const Icon(Icons.phone_android_rounded),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -2108,6 +2125,7 @@ class _PosPageState extends State<PosPage> {
                     _sendWhatsAppReceipt(
                       state.lastConfirmedCustomer,
                       state.lastConfirmedSale!,
+                      overridePhone: phoneController.text,
                     );
                   }
                 },
@@ -2116,6 +2134,7 @@ class _PosPageState extends State<PosPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366),
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
               const SizedBox(height: 12),
@@ -2130,7 +2149,7 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
-  Future<void> _sendWhatsAppReceipt(Customer? customer, Sale sale) async {
+  Future<void> _sendWhatsAppReceipt(Customer? customer, Sale sale, {String? overridePhone}) async {
     final StringBuffer buffer = StringBuffer();
     buffer.writeln('✂️ *Ticket Digital - Barber POS* ✂️');
     final customerName = customer?.name ?? 'Cliente';
@@ -2150,18 +2169,33 @@ class _PosPageState extends State<PosPage> {
 
     final String message = Uri.encodeComponent(buffer.toString());
     
-    // Si tenemos cliente con teléfono, lo mandamos directo. Si no, abrimos WhatsApp genérico.
-    Uri url;
-    if (customer != null && customer.phone != null && customer.phone!.isNotEmpty) {
+    String targetPhone = '';
+    
+    // Si se escribió un número en el campo de texto, usamos ese. Sino probamos con el del cliente.
+    if (overridePhone != null && overridePhone.trim().isNotEmpty) {
+      final String phone = overridePhone.replaceAll(RegExp(r'\D'), '');
+      targetPhone = phone.startsWith('54') ? phone : '54$phone';
+    } else if (customer != null && customer.phone != null && customer.phone!.isNotEmpty) {
       final String phone = customer.phone!.replaceAll(RegExp(r'\D'), '');
-      final String targetPhone = phone.startsWith('54') ? phone : '54$phone';
+      targetPhone = phone.startsWith('54') ? phone : '54$phone';
+    }
+
+    Uri url;
+    if (targetPhone.isNotEmpty) {
       url = Uri.parse('https://wa.me/$targetPhone?text=$message');
     } else {
       url = Uri.parse('https://wa.me/?text=$message');
     }
 
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (kIsWeb) {
+      await launchUrl(url); // En web, plataforma default es mejor (abre nueva pestaña)
+    } else {
+      try {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        // Fallback porsia
+        await launchUrl(url);
+      }
     }
   }
 
