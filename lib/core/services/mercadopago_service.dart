@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:flutter/foundation.dart';
 
 /// Resultado de crear una orden QR en Mercado Pago.
@@ -24,14 +26,33 @@ class MpQrResult {
 class MercadoPagoService {
   static String get _backendBase {
     if (kIsWeb) {
-      // En web usamos ruta relativa — nginx hace proxy /mp/* → barber_backend:8090
+      if (kDebugMode) {
+        return 'http://localhost:8090/mp';
+      }
       return '/mp';
     }
-    // En Android/iOS apuntamos al dominio real
+    if (kDebugMode) {
+      if (Platform.isAndroid) {
+        return 'http://10.0.2.2:8090/mp';
+      }
+      return 'http://localhost:8090/mp';
+    }
     return 'https://barber.katrix.com.ar/mp';
   }
 
   Map<String, String> get _headers => {'Content-Type': 'application/json'};
+
+  /// Crea un cliente HTTP que en debug ignora errores de certificado SSL.
+  /// En release usa el cliente estándar con validación completa.
+  http.Client _buildClient() {
+    if (kDebugMode && !kIsWeb) {
+      final httpClient = HttpClient()
+        ..badCertificateCallback =
+            (X509Certificate cert, String host, int port) => true;
+      return IOClient(httpClient);
+    }
+    return http.Client();
+  }
 
   /// Crea la orden en MP.
   /// El backend hace PASO 1 (PUT) + PASO 2 (GET al POS) para extraer qr_data.
@@ -83,8 +104,9 @@ class MercadoPagoService {
       'items':              orderItems,
     });
 
+    final client = _buildClient();
     try {
-      final response = await http
+      final response = await client
           .put(url, headers: _headers, body: body)
           .timeout(const Duration(seconds: 20));
 
@@ -106,6 +128,8 @@ class MercadoPagoService {
     } catch (e) {
       debugPrint('[MP] Excepción crearOrderConQr: $e');
       return null;
+    } finally {
+      client.close();
     }
   }
 
@@ -118,20 +142,24 @@ class MercadoPagoService {
       (await crearOrderConQr(externalReference, monto, descripcion))?.tieneQr ?? false;
 
   Future<bool> cancelarOrder() async {
+    final client = _buildClient();
     try {
-      final response = await http
+      final response = await client
           .delete(Uri.parse('$_backendBase/order'), headers: _headers)
           .timeout(const Duration(seconds: 10));
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
       debugPrint('[MP] Excepción cancelarOrder: $e');
       return false;
+    } finally {
+      client.close();
     }
   }
 
   Future<String> obtenerEstadoOrden(String externalReference) async {
+    final client = _buildClient();
     try {
-      final response = await http
+      final response = await client
           .get(
             Uri.parse('$_backendBase/order/status?ref=$externalReference'),
             headers: _headers,
@@ -160,6 +188,8 @@ class MercadoPagoService {
     } catch (e) {
       debugPrint('[MP] Excepción obtenerEstado: $e');
       return 'error';
+    } finally {
+      client.close();
     }
   }
 }

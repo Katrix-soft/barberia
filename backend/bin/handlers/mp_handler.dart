@@ -135,45 +135,17 @@ class MpHandler {
         );
       }
 
-      // ── PASO 2: GET al POS para obtener qr_data ──────────────────────────────
-      final getUrl = Uri.parse('$_mpBase/pos/$_externalPosId');
-
-      print('[$timestamp][MpHandler] GET POS → $getUrl');
-
-      final getResponse = await http
-          .get(getUrl, headers: _getHeaders)
-          .timeout(const Duration(seconds: 10));
-
-      print('[$timestamp][MpHandler] GET POS status: ${getResponse.statusCode} | body: ${getResponse.body}');
-
-      Map<String, dynamic> posData = {};
-      try { posData = json.decode(getResponse.body) as Map<String, dynamic>; } catch (_) {}
-
-      // Extraer qr_data — puede estar en campos distintos según la versión de la API
-      final qrMap  = posData['qr'] as Map<String, dynamic>?;
-      final qrData = qrMap?['template_document'] as String?
-                  ?? posData['qr_code'] as String?
-                  ?? posData['template'] as String?;
-
-      final qrImage = qrMap?['template_image'] as String?
-                   ?? env['MP_QR_IMAGE'];
-
-      if (qrData == null && qrImage == null) {
-        return Response.internalServerError(
-          body: json.encode({
-            'error': 'MP no devolvió QR data. Verificá que el POS tenga modelo QR dinámico habilitado.',
-            'pos_response': posData,
-          }),
-          headers: {'Content-Type': 'application/json'},
-        );
-      }
+      // qr_data viene directo en la respuesta del PUT — no necesitamos GET al POS
+      Map<String, dynamic> putData = {};
+      try { putData = json.decode(putResponse.body) as Map<String, dynamic>; } catch (_) {}
+      final qrData = putData['qr_data'] as String?;
 
       return Response.ok(
         json.encode({
-          'qr_data':     qrData,      // string para generar QR con qr_flutter (puede ser null)
-          'qr_image':    qrImage,     // URL imagen PNG de MP
+          'qr_data':     qrData,
+          'qr_image':    null,
           'referencia':  referencia,
-          'usar_imagen': qrData == null, // true = Flutter muestra Image.network
+          'usar_imagen': false,
         }),
         headers: {'Content-Type': 'application/json'},
       );
