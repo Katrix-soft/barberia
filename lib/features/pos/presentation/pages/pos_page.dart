@@ -233,15 +233,16 @@ class _PosPageState extends State<PosPage> {
                     MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
                   );
                   if (barcode != null && mounted) {
+                    final cleanBarcode = barcode.trim().toLowerCase();
                     final state = context.read<PosBloc>().state;
                     try {
                       final product = state.products.firstWhere(
-                        (p) => p.barcode == barcode,
+                        (p) => (p.barcode ?? '').trim().toLowerCase() == cleanBarcode,
                       );
                       context.read<PosBloc>().add(AddProductToCart(product));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Agregado: ${product.name}'),
+                          content: Text('✅ Agregado: ${product.name}'),
                           backgroundColor: Colors.green,
                           duration: const Duration(seconds: 1),
                         ),
@@ -249,8 +250,9 @@ class _PosPageState extends State<PosPage> {
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Producto no encontrado: $barcode'),
+                          content: Text('⚠️ Código "$barcode" no encontrado en inventario'),
                           backgroundColor: Colors.orange,
+                          duration: const Duration(seconds: 3),
                         ),
                       );
                     }
