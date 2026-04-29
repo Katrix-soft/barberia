@@ -1,8 +1,8 @@
-FROM dart:stable AS builder
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
-COPY . .
-RUN dart pub get
+COPY backend/ .
+RUN flutter pub get
 RUN dart compile exe bin/server.dart -o bin/server_linux_amd64
 
 FROM debian:bookworm-slim
