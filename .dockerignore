@@ -5,7 +5,6 @@
 .flutter-plugins-dependencies
 build/
 *.log
-*.txt
 ios/
 android/
 windows/
@@ -16,3 +15,7 @@ macos/
 .idea/
 .vscode/
 .env
+backend/.dart_tool/
+backend/.pub/
+backend/.pub-cache/
+backend/build/
