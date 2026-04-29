@@ -6,7 +6,6 @@
 build/
 *.log
 *.txt
-backend/
 ios/
 android/
 windows/
