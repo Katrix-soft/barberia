@@ -46,4 +46,4 @@ services:
 
 networks:
   npm_network:
-    external: true
+    external: false
