@@ -9,7 +9,11 @@ import 'middleware/rate_limiter.dart';
 import 'package:dotenv/dotenv.dart';
 
 void main() async {
-  final env = DotEnv(includePlatformEnvironment: true)..load(['../.env']);
+  final env = DotEnv(includePlatformEnvironment: true);
+  try {
+    env.load(['.env']);
+  } catch (_) {}
+
   final port = int.parse(env['PORT'] ?? '8090');
   final dbPath = env['DB_PATH'] ?? '/data/pos_barber.db';
 
@@ -20,9 +24,8 @@ void main() async {
   final webhookHandler = WebhookHandler(dbPath: dbPath);
   final mpHandler = MpHandler(env);
 
-  // Configurar OAuth handler para MercadoPago Connect
   final oauthHandler = MercadoPagoOAuthHandler(
-    clientId: env['MP_CLIENT_ID'] ?? '4551113108292732',
+    clientId: env['MP_CLIENT_ID'] ?? '',
     clientSecret: env['MP_CLIENT_SECRET'] ?? '',
     redirectUri: env['MP_REDIRECT_URI'] ?? 'https://barber.katrix.com.ar/oauth/callback',
   );
@@ -36,12 +39,10 @@ void main() async {
     return Response.ok('OK - BM Barber Backend v1.0\n');
   });
 
-  // Webhook MP — máximo 10 por minuto por IP
   router.post('/webhook/mercadopago',
     Pipeline().addMiddleware(rateLimiter(maxRequests: 10, windowSeconds: 60))
       .addHandler(webhookHandler.handle));
 
-  // MP proxy — máximo 30 por minuto por IP
   final mpRateLimited = Pipeline()
       .addMiddleware(rateLimiter(maxRequests: 30, windowSeconds: 60));
 
@@ -54,7 +55,6 @@ void main() async {
   router.get('/mp/qr-image',
     mpRateLimited.addHandler(mpHandler.qrImage));
 
-  // OAuth routes — MercadoPago Connect
   router.mount('/', oauthHandler.router);
 
   final handler = Pipeline()
