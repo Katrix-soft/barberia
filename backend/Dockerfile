@@ -4,7 +4,6 @@ WORKDIR /app
 COPY backend/ .
 RUN flutter pub get --suppress-analytics
 RUN dart build cli bin/server.dart
-RUN find /app -type f -name "server*"
 
 FROM debian:bookworm-slim
 WORKDIR /app
@@ -14,7 +13,7 @@ RUN apt-get update && \
     libsqlite3-0 ca-certificates wget && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/bin/server /app/bin/server
+COPY --from=builder /app/build/cli/linux_x64/bundle/bin/server /app/bin/server
 RUN chmod +x /app/bin/server
 RUN mkdir -p /data
 
