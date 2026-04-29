@@ -10,9 +10,7 @@ WORKDIR /app
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libsqlite3-0 \
-    ca-certificates \
-    wget && \
+    libsqlite3-0 ca-certificates wget && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/bin/server_linux_amd64 /app/bin/server
