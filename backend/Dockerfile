@@ -4,6 +4,7 @@ WORKDIR /app
 COPY backend/ .
 RUN flutter pub get --suppress-analytics
 RUN dart build cli bin/server.dart
+RUN find /app -type f -name "server*"
 
 FROM debian:bookworm-slim
 WORKDIR /app
