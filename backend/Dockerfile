@@ -2,8 +2,8 @@ FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
 COPY backend/ .
-RUN flutter pub get
-RUN dart compile exe bin/server.dart -o bin/server_linux_amd64
+RUN flutter pub get --suppress-analytics
+RUN dart build bin/server.dart -o bin/server_linux_amd64
 
 FROM debian:bookworm-slim
 WORKDIR /app
