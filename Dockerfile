@@ -6,8 +6,9 @@ WORKDIR /app
 RUN flutter config --enable-web
 RUN flutter precache --web
 
-# Copiar dependencias primero
+# Copiar dependencias primero (incluyendo paquetes locales)
 COPY pubspec.* ./
+COPY packages/ ./packages/
 RUN flutter pub get
 
 # Copiar el resto del código
