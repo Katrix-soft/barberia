@@ -344,6 +344,28 @@ class DatabaseHelper {
         debugPrint('[DB] v31: barber_name ya existe o error: $e');
       }
     }
+
+    if (oldVersion < 32) {
+      // Fix: '+' in filenames breaks web asset loading (interpreted as space in URLs)
+      // Update all products with broken or missing image URLs
+      try {
+        await db.rawUpdate(
+          "UPDATE products SET image_url = 'assets/images/corte_barba.png' WHERE name = 'Corte + Barba'"
+        );
+        await db.rawUpdate(
+          "UPDATE products SET image_url = 'assets/images/corte.png' WHERE name = 'Corte Clásico' AND (image_url IS NULL OR image_url = '')"
+        );
+        await db.rawUpdate(
+          "UPDATE products SET image_url = 'assets/images/barba.png' WHERE name = 'Barba' AND (image_url IS NULL OR image_url = '')"
+        );
+        await db.rawUpdate(
+          "UPDATE products SET image_url = 'assets/images/color.png' WHERE name IN ('Color Mechitas', 'Color Global') AND (image_url IS NULL OR image_url = '')"
+        );
+        debugPrint('[DB] Migration v32: image_url de servicios corregidas.');
+      } catch (e) {
+        debugPrint('[DB] v32: error al corregir image_url: $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -459,7 +481,7 @@ class DatabaseHelper {
     // Seed Products (Services)
     final initialServices = [
       {'name': 'Corte Clásico', 'barcode': 'C001', 'price': 12000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte.png'},
-      {'name': 'Corte + Barba', 'barcode': 'C002', 'price': 15000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte+barba.png'},
+      {'name': 'Corte + Barba', 'barcode': 'C002', 'price': 15000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/corte_barba.png'},
       {'name': 'Barba', 'barcode': 'C003', 'price': 7000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/barba.png'},
       {'name': 'Color Mechitas', 'barcode': 'C004', 'price': 40000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
       {'name': 'Color Global', 'barcode': 'C005', 'price': 60000.00, 'category': 'Cortes', 'is_service': 1, 'image_url': 'assets/images/color.png'},
