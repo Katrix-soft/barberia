@@ -593,122 +593,121 @@ class _PosPageState extends State<PosPage> {
                     _loadData();
                   },
                 ),
-                if (isAdmin) ...[
-                  if (isAdmin)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.blue, size: 18),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'MODO OBSERVADOR: Como Admin solo puedes visualizar el sistema.',
-                              style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
-                      ),
+                if (isAdmin)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                     ),
-                  if (!isAdmin && kIsWeb)
-                    ListTile(
-                      leading: const Icon(
-                        Icons.install_mobile_rounded,
-                        color: Color(0xFFC5A028),
-                      ),
-                      title: const Text('Instalar Aplicación'),
-                      subtitle: const Text('Acceso rápido desde tu escritorio'),
-                      onTap: () async {
-                        final installed = await PwaInstaller.installPWA();
-                        if (installed) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('¡Gracias por instalar!'),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'MODO OBSERVADOR: Como Admin solo puedes visualizar el sistema.',
+                            style: TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (kIsWeb)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.install_mobile_rounded,
+                      color: Color(0xFFC5A028),
+                    ),
+                    title: const Text('Instalar Aplicación'),
+                    subtitle: const Text('Acceso rápido desde tu escritorio'),
+                    onTap: () async {
+                      final installed = await PwaInstaller.installPWA();
+                      if (installed) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('¡Gracias por instalar!'),
+                            ),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Si estás en iPhone/iOS, usa el botón "Compartir" y luego "Agregar a pantalla de inicio".',
                               ),
-                            );
-                          }
-                        } else {
+                              duration: Duration(seconds: 5),
+                            ),
+                          );
+                        }
+                      }
+                      if (mounted) Navigator.pop(context);
+                    },
+                  ),
+                if (isAdmin) ...[
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.refresh, color: Colors.red),
+                    title: const Text(
+                      'Reiniciar Base de Datos',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('¿Reiniciar Base de Datos?'),
+                          content: const Text(
+                            'Se borrarán todos los datos y se cargarán los productos por defecto (Barba, Corte, Bebidas, etc).',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text(
+                                'Sí, Reiniciar',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        try {
+                          await DatabaseHelper().resetDatabase();
                           if (mounted) {
+                            _loadData();
+                            Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Si estás en iPhone/iOS, usa el botón "Compartir" y luego "Agregar a pantalla de inicio".',
+                                  'Base de datos reiniciada con éxito',
                                 ),
-                                duration: Duration(seconds: 5),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error al reiniciar: $e'),
+                                backgroundColor: Colors.red,
                               ),
                             );
                           }
                         }
-                        if (mounted) Navigator.pop(context);
-                      },
-                    ),
-                  if (isAdmin) const Divider(),
-                  if (isAdmin)
-                    ListTile(
-                      leading: const Icon(Icons.refresh, color: Colors.red),
-                      title: const Text(
-                        'Reiniciar Base de Datos',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      onTap: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('¿Reiniciar Base de Datos?'),
-                            content: const Text(
-                              'Se borrarán todos los datos y se cargarán los productos por defecto (Barba, Corte, Bebidas, etc).',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('Cancelar'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text(
-                                  'Sí, Reiniciar',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (confirm == true) {
-                          try {
-                            await DatabaseHelper().resetDatabase();
-                            if (mounted) {
-                              _loadData();
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Base de datos reiniciada con éxito',
-                                  ),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error al reiniciar: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-                    ),
+                      }
+                    },
+                  ),
                 ],
                 const Divider(),
                 Padding(
