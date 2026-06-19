@@ -1,29 +1,39 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 class DownloadHelper {
-  static Future<String?> downloadExcel(List<int> bytes, String fileName) async {
+  static Future<String?> downloadExcel(
+      List<int> bytes, String fileName) async {
     try {
-      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      
-      final anchor = html.document.createElement('a') as html.AnchorElement;
+      final jsBytes = bytes.map((b) => b.toJS).toList().toJS;
+      final blob = web.Blob(
+        jsBytes,
+        web.BlobPropertyBag(
+          type:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ),
+      );
+      final url = web.URL.createObjectURL(blob);
+
+      final anchor =
+          web.document.createElement('a') as web.HTMLAnchorElement;
       anchor.href = url;
       anchor.download = fileName;
       anchor.style.display = 'none';
-      
-      html.document.body?.append(anchor);
+
+      web.document.body?.append(anchor);
       anchor.click();
-      
+
       // Keep it in DOM for a moment before cleanup
       Timer(const Duration(milliseconds: 500), () {
         anchor.remove();
-        html.Url.revokeObjectUrl(url);
+        web.URL.revokeObjectURL(url);
       });
-      
-      return "Descargado: $fileName";
+
+      return 'Descargado: $fileName';
     } catch (e) {
-      return "Error: ${e.toString()}";
+      return 'Error: ${e.toString()}';
     }
   }
 }

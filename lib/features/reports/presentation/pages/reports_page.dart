@@ -201,9 +201,9 @@ class _ReportsPageState extends State<ReportsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFC5A028).withOpacity(0.1),
+        color: const Color(0xFFC5A028).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFC5A028).withValues(alpha: 0.3)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -233,7 +233,7 @@ class _ReportsPageState extends State<ReportsPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFC5A028).withOpacity(0.05),
+        color: const Color(0xFFC5A028).withValues(alpha: 0.05),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Column(
@@ -262,7 +262,7 @@ class _ReportsPageState extends State<ReportsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: net >= 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: net >= 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -311,7 +311,7 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _infoCard(String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.withOpacity(0.1))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -350,7 +350,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: BarChart(
         BarChartData(
@@ -434,7 +434,7 @@ class _ReportsPageState extends State<ReportsPage> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -455,7 +455,7 @@ class _ReportsPageState extends State<ReportsPage> {
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundColor: const Color(0xFFC5A028).withOpacity(0.1),
+                            backgroundColor: const Color(0xFFC5A028).withValues(alpha: 0.1),
                             child: Text(barber.isNotEmpty ? barber.substring(0, 1).toUpperCase() : '?', style: const TextStyle(color: Color(0xFFC5A028), fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                           const SizedBox(width: 12),
@@ -530,7 +530,7 @@ class _SaleCard extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: (isPersonal ? Colors.orange : const Color(0xFFC5A028)).withOpacity(0.1),
+          color: (isPersonal ? Colors.orange : const Color(0xFFC5A028)).withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(
@@ -545,7 +545,7 @@ class _SaleCard extends StatelessWidget {
           if (isPersonal)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+              decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
               child: const Text('A CUENTA', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
             ),
         ],

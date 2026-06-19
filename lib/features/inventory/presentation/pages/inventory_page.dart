@@ -37,7 +37,7 @@ class _InventoryPageState extends State<InventoryPage> {
               decoration: BoxDecoration(
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFC5A028).withOpacity(0.3),
+                    color: const Color(0xFFC5A028).withValues(alpha: 0.3),
                     blurRadius: 10,
                     spreadRadius: -2,
                     offset: const Offset(0, 2),
@@ -281,7 +281,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFFC5A028,
-                                  ).withOpacity(0.1),
+                                  ).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Icon(
@@ -327,7 +327,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           child: SwitchListTile(
                             title: const Text('¿Es un servicio (no stock)?'),
                             value: isService,
-                            activeThumbColor: const Color(0xFFC5A028),
+                            activeColor: const Color(0xFFC5A028),
                             onChanged: (val) => setState(() => isService = val),
                           ),
                         ),

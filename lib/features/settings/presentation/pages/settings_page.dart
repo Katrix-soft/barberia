@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import '../../../../core/utils/pwa_installer.dart';
+import 'package:katrix_biometrics/katrix_biometrics.dart';
 import '../../../../core/utils/version_info.dart';
 import '../../../../core/theme/bloc/theme_bloc.dart';
 import '../../../../core/theme/bloc/theme_event.dart';
@@ -21,7 +20,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _useBiometrics = false;
   bool _isBiometricSupported = false;
-  final LocalAuthentication _auth = LocalAuthentication();
 
   @override
   void initState() {
@@ -38,28 +36,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _checkBiometricSupport() async {
-    await Future.delayed(const Duration(milliseconds: 2000));
-    
+    await Future.delayed(const Duration(milliseconds: 1500));
     try {
-      bool isSupported = false;
-      if (kIsWeb) {
-        // Reintentar hasta 3 veces con delay si falla inicialmente
-        for (int i = 0; i < 3; i++) {
-          isSupported = await PwaInstaller.checkWebBiometrics();
-          if (isSupported) break;
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      } else {
-        final deviceSupported = await _auth.isDeviceSupported();
-        final canCheck = await _auth.canCheckBiometrics;
-        isSupported = deviceSupported || canCheck;
-      }
-      
+      final isSupported = await KatrixBiometrics.isAvailable;
+      final isEnabled  = await KatrixBiometrics.isEnabled;
       if (mounted) {
         setState(() {
           _isBiometricSupported = isSupported;
+          _useBiometrics = isEnabled;
         });
-        debugPrint('[Settings] Biometric Support Status: $isSupported');
+        debugPrint('[Settings] KatrixBio supported=$isSupported enabled=$isEnabled');
       }
     } catch (e) {
       debugPrint('[Settings] Error checking biometrics: $e');
@@ -67,73 +53,42 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _toggleBiometrics(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
     if (value) {
-      try {
-        if (kIsWeb) {
-          final prefs = await SharedPreferences.getInstance();
-          final email = prefs.getString('saved_email') ?? 'usuario';
-          final String? bioCredential = await PwaInstaller.linkWebBiometrics(email);
-          if (bioCredential != null && bioCredential.isNotEmpty) {
-            // Guardar credId en SharedPreferences para sobrevivir limpiezas de localStorage
-            await prefs.setString('bio_cred_id', bioCredential);
-            await prefs.setBool('use_biometrics', true);
-            setState(() => _useBiometrics = true);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Biometría activada correctamente ✓'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('No pudo registrarse la biometría en el navegador'),
-                  backgroundColor: Colors.redAccent,
-                ),
-              );
-            }
-          }
-          return;
-        }
-
-        final authenticated = await _auth.authenticate(
-          localizedReason: 'Confirma tu identidad para activar el acceso biométrico',
-          options: const AuthenticationOptions(
-            stickyAuth: true,
-            biometricOnly: false,
-            useErrorDialogs: true,
-          ),
-        );
-        if (authenticated) {
-          await prefs.setBool('use_biometrics', true);
+      // Enrollar con KatrixBiometrics
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('saved_email') ?? 'usuario';
+      final result = await KatrixBiometrics.enroll(userId: userId);
+      if (!mounted) return;
+      switch (result) {
+        case BiometricSuccess() || BiometricEnrolled():
           setState(() => _useBiometrics = true);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Acceso biométrico activado correctamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        }
-      } on PlatformException catch (e) {
-        debugPrint('Error activating biometrics: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al activar biometría: ${e.message}'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('✓ Acceso biométrico activado'),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ));
+        case BiometricFailed(reason: final r):
+          debugPrint('[Settings] bio enroll failed: $r');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al activar biometría: $r'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ));
+        case BiometricUnavailable(reason: final r):
+          debugPrint('[Settings] bio unavail: $r');
       }
     } else {
-      await prefs.setBool('use_biometrics', false);
+      await KatrixBiometrics.clearCredentials();
       setState(() => _useBiometrics = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('Biometría desactivada'),
+          backgroundColor: Colors.blueGrey.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
     }
   }
 
@@ -175,8 +130,8 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _buildSectionHeader('SEGURIDAD', primaryGold),
             if (_isBiometricSupported)
-              FutureBuilder<List<BiometricType>>(
-                future: kIsWeb ? Future.value([]) : _auth.getAvailableBiometrics(),
+              FutureBuilder<List<String>>(
+                future: KatrixBiometrics.availableTypes,
                 builder: (context, snapshot) {
                   final hasEnrollment = kIsWeb || (snapshot.hasData && snapshot.data!.isNotEmpty);
                   return _buildSettingCard(
@@ -280,7 +235,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.outfit(
                   fontSize: 11,
-                  color: primaryGold.withOpacity(0.4),
+                  color: primaryGold.withValues(alpha: 0.4),
                   letterSpacing: 6,
                   fontWeight: FontWeight.w900,
                 ),
@@ -324,7 +279,7 @@ class _SettingsPageState extends State<SettingsPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
         ),
       ),
       color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
@@ -333,7 +288,7 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: primaryGold.withOpacity(0.1),
+            color: primaryGold.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: primaryGold),

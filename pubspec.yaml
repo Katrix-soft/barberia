@@ -13,7 +13,7 @@ dependencies:
   # UI & Icons
   cupertino_icons: ^1.0.6
   google_fonts: ^6.2.1
-  font_awesome_flutter: ^10.7.0
+  font_awesome_flutter: ^10.8.0
   
   # State Management & Architecture
   flutter_bloc: ^8.1.3
@@ -22,13 +22,16 @@ dependencies:
   dartz: ^0.10.1
   
   # Charts & Visualización
-  fl_chart: ^1.1.1
+  fl_chart: ^0.68.0
   
   # Utils
   path: ^1.9.0
   intl: ^0.20.2
   responsive_builder: ^0.7.1
   crypto: ^3.0.3
+  
+  # Web APIs
+  web: ^1.1.1
   
   # Network
   http: ^1.6.0
@@ -40,27 +43,23 @@ dependencies:
   sqflite_common_ffi_web: ^0.4.0+1
   
   # Storage - Multiplataforma
-  shared_preferences: ^2.5.2
+  shared_preferences: ^2.3.0
   path_provider: ^2.1.5
   flutter_secure_storage: ^9.2.2
   
-  # Audio - Multiplataforma
-  audioplayers: ^6.6.0
+
+  mobile_scanner: ^6.0.0
   
   # Excel
   excel: ^4.0.6
   
-  # QR Scanner - Solo mobile (condicional en código)
-  mobile_scanner: ^7.2.0
-  
+
   # QR Generator - Render QR codes from MP qr_data string
   qr_flutter: ^4.1.0
   
-  # Auth biométrica - Mobile + Desktop
-  local_auth: ^2.3.0
-  local_auth_android: ^1.0.47
-  local_auth_darwin: ^1.4.1
-  local_auth_windows: ^1.0.11
+  # 🔐 Katrix Biometrics (paquete local multi-plataforma)
+  katrix_biometrics:
+    path: packages/katrix_biometrics
 
 dev_dependencies:
   flutter_test:
@@ -82,4 +81,3 @@ flutter:
   generate: true
   assets:
     - assets/images/
-    - assets/audio/

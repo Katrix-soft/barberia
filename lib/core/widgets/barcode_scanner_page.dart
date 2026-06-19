@@ -84,7 +84,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
                   height: 260,
                   decoration: BoxDecoration(
                     border: Border.all(
-                        color: const Color(0xFFC5A028).withOpacity(0.4),
+                        color: const Color(0xFFC5A028).withValues(alpha: 0.4),
                         width: 1),
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -203,10 +203,10 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC5A028).withOpacity(0.1),
+                  color: const Color(0xFFC5A028).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFFC5A028).withOpacity(0.3),
+                    color: const Color(0xFFC5A028).withValues(alpha: 0.3),
                     width: 2,
                   ),
                 ),
@@ -275,7 +275,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-                  BorderSide(color: Colors.white.withOpacity(0.2)),
+                  BorderSide(color: Colors.white.withValues(alpha: 0.2)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

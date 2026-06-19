@@ -204,9 +204,9 @@ class _CashboxClosingPageState extends State<CashboxClosingPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFC5A028).withOpacity(0.05),
+                color: const Color(0xFFC5A028).withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
+                border: Border.all(color: const Color(0xFFC5A028).withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -235,15 +235,15 @@ class _CashboxClosingPageState extends State<CashboxClosingPage> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: (_discrepancyCash + _discrepancyMp) == 0
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: [
                   Text(
                     'DESCUADRE TOTAL',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontWeight: FontWeight.bold, letterSpacing: 1.5),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -352,11 +352,11 @@ class _CashboxClosingPageState extends State<CashboxClosingPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Icon(Icons.info_outline, size: 12, color: Colors.orange.withOpacity(0.8)),
+                  Icon(Icons.info_outline, size: 12, color: Colors.orange.withValues(alpha: 0.8)),
                   const SizedBox(width: 4),
                   Text(
                     'Se descontaron \$${expensesDiscounted.toStringAsFixed(2)} por Gastos pagados',
-                    style: TextStyle(color: Colors.orange.withOpacity(0.8), fontSize: 11, fontStyle: FontStyle.italic),
+                    style: TextStyle(color: Colors.orange.withValues(alpha: 0.8), fontSize: 11, fontStyle: FontStyle.italic),
                   ),
                 ],
               ),

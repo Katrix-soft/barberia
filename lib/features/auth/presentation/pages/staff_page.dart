@@ -66,19 +66,23 @@ class _StaffPageState extends State<StaffPage> {
 
           return Column(
             children: [
-              if (isAdmin)
+              if (isHeadBarber)
                 Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  color: Colors.blue.withOpacity(0.1),
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                  ),
                   child: const Row(
                     children: [
-                      Icon(Icons.visibility, color: Colors.blue, size: 20),
-                      SizedBox(width: 12),
+                      Icon(Icons.visibility_outlined, color: Colors.orange, size: 18),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'MODO OBSERVADOR: No puedes modificar el personal.',
-                          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12),
+                          'MODO OBSERVADOR — Solo podés ver el equipo de empleados.',
+                          style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -86,100 +90,97 @@ class _StaffPageState extends State<StaffPage> {
                 ),
               Expanded(
                 child: ListView.builder(
-            itemCount: visibleUsers.length,
-            itemBuilder: (context, index) {
-              final user = visibleUsers[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: user.role == UserRole.admin
-                      ? Colors.deepPurple[50]
-                      : user.role == UserRole.headBarber
-                      ? Colors.orange[50]
-                      : Colors.green[50],
-                  child: Icon(
-                    user.role == UserRole.admin
-                        ? Icons.admin_panel_settings
-                        : user.role == UserRole.headBarber
-                        ? Icons.content_cut
-                        : Icons.badge_outlined,
-                    color: user.role == UserRole.admin
-                        ? Colors.deepPurple
-                        : user.role == UserRole.headBarber
-                        ? Colors.orange
-                        : Colors.green,
-                  ),
-                ),
-                title: Text(user.name),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${user.email} - Rol: ${user.role == UserRole.admin ? 'Admin' : (user.role == UserRole.headBarber ? 'Barbero Jefe' : 'Barbero')}',
-                    ),
-                    if (user.dailyRate > 0)
-                      Text(
-                        'Pago Diario: \$${user.dailyRate.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                  itemCount: visibleUsers.length,
+                  itemBuilder: (context, index) {
+                    final user = visibleUsers[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: user.role == UserRole.admin
+                            ? Colors.deepPurple[50]
+                            : user.role == UserRole.headBarber
+                            ? Colors.orange[50]
+                            : Colors.green[50],
+                        child: Icon(
+                          user.role == UserRole.admin
+                              ? Icons.admin_panel_settings
+                              : user.role == UserRole.headBarber
+                              ? Icons.content_cut
+                              : Icons.badge_outlined,
+                          color: user.role == UserRole.admin
+                              ? Colors.deepPurple
+                              : user.role == UserRole.headBarber
+                              ? Colors.orange
+                              : Colors.green,
                         ),
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
-                      tooltip: 'Pagar / Ver Recibos',
-                      onPressed: () => _showPayrollDialog(context, user),
-                    ),
-                   ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!isAdmin) ...[
-                      IconButton(
-                        icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
-                        tooltip: 'Pagar / Ver Recibos',
-                        onPressed: () => _showPayrollDialog(context, user),
+                      title: Text(user.name),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${user.email} - Rol: ${user.role == UserRole.admin ? 'Admin' : (user.role == UserRole.headBarber ? 'Barbero Jefe' : 'Barbero')}',
+                          ),
+                          if (user.dailyRate > 0)
+                            Text(
+                              'Pago Diario: \$${user.dailyRate.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => _showUserDialog(context, user: user),
-                      ),
-                    ],
-                  ],
+                      trailing: isAdmin
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.receipt_long_outlined, color: Colors.blueGrey),
+                                  tooltip: 'Pagar / Ver Recibos',
+                                  onPressed: () => _showPayrollDialog(context, user),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _showUserDialog(context, user: user),
+                                ),
+                              ],
+                            )
+                          : null,
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  },
-),
-floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
-  builder: (context, authState) {
-    final bool isAdmin = authState is Authenticated && authState.user.role == UserRole.admin;
-    if (isAdmin) return const SizedBox.shrink();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FloatingActionButton.extended(
-          heroTag: 'history',
-          onPressed: () => _showPayrollHistory(context),
-          label: const Text('Historial Pagos'),
-          icon: const Icon(Icons.history),
-          backgroundColor: Colors.blueGrey,
-        ),
-        const SizedBox(height: 16),
-        FloatingActionButton(
-          heroTag: 'add',
-          onPressed: () => _showUserDialog(context),
-          child: const Icon(Icons.person_add),
-        ),
-      ],
-    );
-  },
-),
+              ),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, authState) {
+          final fbAuthState = authState;
+          final fbUser = fbAuthState is Authenticated ? fbAuthState.user : null;
+          final fbIsAdmin = fbUser?.role == UserRole.admin;
+          if (!fbIsAdmin) return const SizedBox.shrink();
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton.extended(
+                heroTag: 'history',
+                onPressed: () => _showPayrollHistory(context),
+                label: const Text('Historial Pagos'),
+                icon: const Icon(Icons.history),
+                backgroundColor: Colors.blueGrey,
+              ),
+              const SizedBox(height: 16),
+              FloatingActionButton(
+                heroTag: 'add',
+                onPressed: () => _showUserDialog(context),
+                child: const Icon(Icons.person_add),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -381,7 +382,7 @@ floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
                           Container(
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: Colors.grey.withOpacity(0.3),
+                                color: Colors.grey.withValues(alpha: 0.3),
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -397,10 +398,10 @@ floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
                                     style: TextStyle(fontSize: 12),
                                   ),
                                   value: UserRole.employee,
-                                  activeColor: const Color(0xFFC5A028),
                                   groupValue: selectedRole,
                                   onChanged: (val) =>
                                       setState(() => selectedRole = val!),
+                                  activeColor: const Color(0xFFC5A028),
                                 ),
                                 if (!isHeadBarber) ...[
                                   const Divider(height: 1),
@@ -414,10 +415,10 @@ floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
                                       style: TextStyle(fontSize: 12),
                                     ),
                                     value: UserRole.headBarber,
-                                    activeColor: const Color(0xFFC5A028),
                                     groupValue: selectedRole,
                                     onChanged: (val) =>
                                         setState(() => selectedRole = val!),
+                                    activeColor: const Color(0xFFC5A028),
                                   ),
                                   const Divider(height: 1),
                                   RadioListTile<UserRole>(
@@ -430,10 +431,10 @@ floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
                                       style: TextStyle(fontSize: 12),
                                     ),
                                     value: UserRole.admin,
-                                    activeColor: const Color(0xFFC5A028),
                                     groupValue: selectedRole,
                                     onChanged: (val) =>
                                         setState(() => selectedRole = val!),
+                                    activeColor: const Color(0xFFC5A028),
                                   ),
                                 ],
                               ],
@@ -845,9 +846,9 @@ floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

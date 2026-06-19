@@ -134,7 +134,7 @@ class _HelpPageState extends State<HelpPage> {
             width: 80,
             decoration: BoxDecoration(
               color: const Color(0xFF141414),
-              border: Border(right: BorderSide(color: Colors.white.withOpacity(0.05))),
+              border: Border(right: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
             ),
             child: ListView.builder(
               itemCount: sections.length,
@@ -151,7 +151,7 @@ class _HelpPageState extends State<HelpPage> {
                           width: 4,
                         ),
                       ),
-                      color: isSelected ? const Color(0xFFC5A028).withOpacity(0.05) : null,
+                      color: isSelected ? const Color(0xFFC5A028).withValues(alpha: 0.05) : null,
                     ),
                     child: Icon(
                       sections[index]['icon'] as IconData,
@@ -182,7 +182,7 @@ class _HelpPageState extends State<HelpPage> {
                     height: 4,
                     width: 60,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFC5A028).withOpacity(0.3),
+                      color: const Color(0xFFC5A028).withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),

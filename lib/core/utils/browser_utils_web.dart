@@ -1,28 +1,29 @@
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 class BrowserUtils {
   static Future<void> hardReload() async {
     try {
       // 1. Unregister Service Workers to clear PWA cache
-      final regs = await html.window.navigator.serviceWorker?.getRegistrations();
-      if (regs != null) {
-        for (var reg in regs) {
-          // Send skip waiting message
-          reg.active?.postMessage({'type': 'SKIP_WAITING'});
-          await reg.unregister();
-        }
+      final sw = web.window.navigator.serviceWorker;
+      final regs = await sw.getRegistrations().toDart;
+      for (var reg in regs.toDart) {
+        reg.active?.postMessage({'type': 'SKIP_WAITING'}.jsify());
+        await reg.unregister().toDart;
       }
-      
+
       // 2. Clear Caches
-      await html.window.caches?.delete('bm-barber-v1');
-      
+      await web.window.caches.delete('bm-barber-v1').toDart;
+
       // 3. Hard Reload using a timestamp to bypass server/browser cache
-      final String currentBaseUrl = html.window.location.href.split('?')[0];
-      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      html.window.location.href = '$currentBaseUrl?v=$timestamp';
+      final String currentBaseUrl =
+          web.window.location.href.split('?').first;
+      final String timestamp =
+          DateTime.now().millisecondsSinceEpoch.toString();
+      web.window.location.href = '$currentBaseUrl?v=$timestamp';
     } catch (e) {
       // Fallback to simple reload
-      html.window.location.reload();
+      web.window.location.reload();
     }
   }
 }

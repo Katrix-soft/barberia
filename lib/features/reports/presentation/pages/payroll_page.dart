@@ -133,7 +133,7 @@ class _PayrollPageState extends State<PayrollPage> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: const Color(0xFFC5A028).withOpacity(0.1),
+                  backgroundColor: const Color(0xFFC5A028).withValues(alpha: 0.1),
                   child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFFC5A028), fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 12),

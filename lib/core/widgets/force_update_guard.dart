@@ -132,7 +132,7 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.05),
+                    color: Colors.amber.withValues(alpha: 0.05),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -156,7 +156,7 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
                   _maintenanceMode 
                     ? _message 
                     : 'Instalando la última versión y sincronizando base de datos...',
-                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.6), height: 1.5),
+                  style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.6), height: 1.5),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 60),
@@ -169,7 +169,7 @@ class _ForceUpdateGuardState extends State<ForceUpdateGuard> {
                       Container(
                         height: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: ClipRRect(

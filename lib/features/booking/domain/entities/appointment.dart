@@ -8,6 +8,7 @@ class Appointment extends Equatable {
   final String customerName;
   final int? serviceId;
   final String serviceName;
+  final String? barberName;
   final DateTime dateTime;
   final AppointmentStatus status;
   final String? notes;
@@ -20,6 +21,7 @@ class Appointment extends Equatable {
     required this.customerName,
     this.serviceId,
     required this.serviceName,
+    this.barberName,
     required this.dateTime,
     this.status = AppointmentStatus.pending,
     this.notes,
@@ -34,6 +36,7 @@ class Appointment extends Equatable {
     customerName,
     serviceId,
     serviceName,
+    barberName,
     dateTime,
     status,
     notes,

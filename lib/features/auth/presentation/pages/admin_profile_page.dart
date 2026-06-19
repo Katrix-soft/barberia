@@ -165,10 +165,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: const Color(0xFF0A0A0A),
-          border: Border.all(color: color.withOpacity(0.3), width: 1),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
           borderRadius: BorderRadius.circular(4),
           boxShadow: [
-            BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, spreadRadius: 2),
+            BoxShadow(color: color.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 2),
           ],
         ),
         child: Column(
@@ -231,7 +231,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                   child: Text(
                     _systemLogs[index],
                     style: GoogleFonts.shareTechMono(
-                      color: _systemLogs[index].contains("WARNING") ? Colors.red : Colors.green.withOpacity(0.8),
+                      color: _systemLogs[index].contains("WARNING") ? Colors.red : Colors.green.withValues(alpha: 0.8),
                       fontSize: 13,
                     ),
                   ),
@@ -261,8 +261,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFC5A028).withOpacity(0.05),
-            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.2)),
+            color: const Color(0xFFC5A028).withValues(alpha: 0.05),
+            border: Border.all(color: const Color(0xFFC5A028).withValues(alpha: 0.2)),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(
@@ -288,7 +288,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0A0A0A),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(

@@ -84,6 +84,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       customerName: appointment.customerName,
       serviceId: appointment.serviceId,
       serviceName: appointment.serviceName,
+      barberName: appointment.barberName,
       dateTime: appointment.dateTime,
       status: event.status,
       notes: appointment.notes,

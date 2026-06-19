@@ -15,8 +15,7 @@ import '../../../auth/presentation/bloc/auth_event.dart';
 import '../widgets/mercadopago_qr_dialog.dart';
 import '../../../auth/presentation/pages/staff_page.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
-import '../../../auth/presentation/bloc/user_bloc.dart';
-import '../../../auth/presentation/bloc/user_event.dart';
+// user_bloc and user_event removed (unused)
 import '../../../auth/domain/entities/user.dart';
 import '../../../reports/presentation/pages/reports_page.dart';
 import '../../../reports/presentation/pages/cashbox_closing_page.dart';
@@ -30,7 +29,7 @@ import '../../../settings/presentation/pages/settings_page.dart';
 import 'package:posbarber/core/database/database_helper.dart';
 import 'package:posbarber/core/utils/pwa_installer.dart';
 import 'package:posbarber/core/utils/version_info.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:katrix_biometrics/katrix_biometrics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -82,19 +81,7 @@ class _PosPageState extends State<PosPage> {
     await Future.delayed(const Duration(milliseconds: 1000));
     bool isSupported = false;
     try {
-      if (kIsWeb) {
-        // Reintentar hasta 3 veces con delay
-        for (int i = 0; i < 3; i++) {
-          isSupported = await PwaInstaller.checkWebBiometrics();
-          if (isSupported) break;
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      } else {
-        final auth = LocalAuthentication();
-        final deviceSupported = await auth.isDeviceSupported();
-        final canCheck = await auth.canCheckBiometrics;
-        isSupported = deviceSupported || canCheck;
-      }
+      isSupported = await KatrixBiometrics.isAvailable;
     } catch (e) {
       debugPrint('[Biometrics] Error checking support: $e');
     }
@@ -135,37 +122,32 @@ class _PosPageState extends State<PosPage> {
 
       await prefs.setBool('use_biometrics_asked', true);
       if (result == true) {
-        bool linked = false;
-        if (kIsWeb) {
-          final authState = context.read<AuthBloc>().state;
-          final String userForBio = authState is Authenticated ? authState.user.name : 'Staff';
-          final String? bioCredential = await PwaInstaller.linkWebBiometrics(userForBio);
-          if (bioCredential != null && bioCredential.isNotEmpty) {
-            await prefs.setString('bio_cred_id', bioCredential);
-            linked = true;
-          }
-        } else {
-          linked = true; // On mobile, if they said yes, we trust the already performed auth
-        }
-
-        if (linked) {
-          await prefs.setBool('use_biometrics', true);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Biometría activada con éxito.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No se pudo vincular la biometría.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+        final authState = context.read<AuthBloc>().state;
+        final String userForBio = authState is Authenticated ? authState.user.name : 'Staff';
+        final bioResult = await KatrixBiometrics.enroll(userId: userForBio);
+        if (mounted) {
+          switch (bioResult) {
+            case BiometricSuccess() || BiometricEnrolled():
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Biometría activada con éxito.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            case BiometricFailed(reason: final r):
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('No se pudo vincular la biometría: $r'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            case BiometricUnavailable(reason: final r):
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Biometría no disponible: $r'),
+                  backgroundColor: Colors.orangeAccent,
+                ),
+              );
           }
         }
       }
@@ -188,7 +170,7 @@ class _PosPageState extends State<PosPage> {
               decoration: BoxDecoration(
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFC5A028).withOpacity(0.3),
+                    color: const Color(0xFFC5A028).withValues(alpha: 0.3),
                     blurRadius: 10,
                     spreadRadius: -2,
                     offset: const Offset(0, 2),
@@ -222,7 +204,7 @@ class _PosPageState extends State<PosPage> {
             Container(
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
@@ -263,7 +245,7 @@ class _PosPageState extends State<PosPage> {
           Container(
             margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -305,12 +287,12 @@ class _PosPageState extends State<PosPage> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 spreadRadius: 1,
                               ),
                               BoxShadow(
-                                color: const Color(0xFFC5A028).withOpacity(0.4),
+                                color: const Color(0xFFC5A028).withValues(alpha: 0.4),
                                 blurRadius: 10,
                                 spreadRadius: -2,
                               ),
@@ -397,9 +379,9 @@ class _PosPageState extends State<PosPage> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFC5A028).withOpacity(0.1),
+                            color: const Color(0xFFC5A028).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3)),
+                            border: Border.all(color: const Color(0xFFC5A028).withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +398,7 @@ class _PosPageState extends State<PosPage> {
                                       letterSpacing: 1.2,
                                     ),
                                   ),
-                                  Icon(Icons.account_balance_wallet_outlined, size: 14, color: const Color(0xFFC5A028).withOpacity(0.5)),
+                                  Icon(Icons.account_balance_wallet_outlined, size: 14, color: const Color(0xFFC5A028).withValues(alpha: 0.5)),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -463,7 +445,7 @@ class _PosPageState extends State<PosPage> {
                   onTap: () => Navigator.pop(context),
                   selected: true,
                   selectedColor: const Color(0xFFC5A028),
-                  selectedTileColor: const Color(0xFFC5A028).withOpacity(0.05),
+                  selectedTileColor: const Color(0xFFC5A028).withValues(alpha: 0.05),
                 ),
                 ListTile(
                   leading: const Icon(Icons.event_note_rounded),
@@ -617,9 +599,9 @@ class _PosPageState extends State<PosPage> {
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                       ),
                       child: const Row(
                         children: [
@@ -737,7 +719,7 @@ class _PosPageState extends State<PosPage> {
                         'Katrix Barber v${VersionInfo.appVersion}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey.withOpacity(0.6),
+                          color: Colors.grey.withValues(alpha: 0.6),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -746,7 +728,7 @@ class _PosPageState extends State<PosPage> {
                         'DB Version: ${VersionInfo.dbVersion}',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.grey.withOpacity(0.4),
+                          color: Colors.grey.withValues(alpha: 0.4),
                           letterSpacing: 1.0,
                         ),
                       ),
@@ -975,15 +957,15 @@ class _PosPageState extends State<PosPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFC5A028).withOpacity(0.15),
-            const Color(0xFFC5A028).withOpacity(0.05),
+            const Color(0xFFC5A028).withValues(alpha: 0.15),
+            const Color(0xFFC5A028).withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFFC5A028).withOpacity(0.2),
+          color: const Color(0xFFC5A028).withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -1049,8 +1031,8 @@ class _PosPageState extends State<PosPage> {
           borderRadius: BorderRadius.circular(24),
           side: BorderSide(
             color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.12)
-                : Colors.black.withOpacity(0.05),
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.05),
             width: 1,
           ),
         ),
@@ -1066,8 +1048,8 @@ class _PosPageState extends State<PosPage> {
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withOpacity(0.03) // Subtle lift
-                        : const Color(0xFFC5A028).withOpacity(0.05),
+                        ? Colors.white.withValues(alpha: 0.03) // Subtle lift
+                        : const Color(0xFFC5A028).withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Stack(
@@ -1082,7 +1064,7 @@ class _PosPageState extends State<PosPage> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.white.withOpacity(0.03),
+                                color: Colors.white.withValues(alpha: 0.03),
                                 blurRadius: 40,
                                 spreadRadius: 0,
                               ),
@@ -1192,7 +1174,7 @@ class _PosPageState extends State<PosPage> {
                                 color: (product.stock > 5
                                         ? Colors.green
                                         : Colors.orange)
-                                    .withOpacity(0.1),
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1254,7 +1236,7 @@ class _PosPageState extends State<PosPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFC5A028).withOpacity(0.1),
+                    color: const Color(0xFFC5A028).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -1279,7 +1261,7 @@ class _PosPageState extends State<PosPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFC5A028).withOpacity(0.05),
+              color: const Color(0xFFC5A028).withValues(alpha: 0.05),
             ),
             child: Row(
               children: [
@@ -1337,7 +1319,7 @@ class _PosPageState extends State<PosPage> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -1395,7 +1377,7 @@ class _PosPageState extends State<PosPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: Colors.redAccent.withOpacity(0.2), width: 1),
+                      side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.2), width: 1),
                     ),
                   ),
                   child: const Row(
@@ -1414,8 +1396,8 @@ class _PosPageState extends State<PosPage> {
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFC5A028).withOpacity(0.3), width: 1),
-                      color: const Color(0xFFC5A028).withOpacity(0.05),
+                      border: Border.all(color: const Color(0xFFC5A028).withValues(alpha: 0.3), width: 1),
+                      color: const Color(0xFFC5A028).withValues(alpha: 0.05),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -1475,13 +1457,13 @@ class _PosPageState extends State<PosPage> {
             Icon(
               Icons.shopping_bag_outlined,
               size: 48,
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
               'Tu carrito está vacío',
               style: TextStyle(
-                color: Colors.grey.withOpacity(0.5),
+                color: Colors.grey.withValues(alpha: 0.5),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1503,7 +1485,7 @@ class _PosPageState extends State<PosPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1569,7 +1551,7 @@ class _PosPageState extends State<PosPage> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Colors.black.withOpacity(0.05))),
+        border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
       ),
       child: Column(
         children: [
@@ -1643,7 +1625,7 @@ class _PosPageState extends State<PosPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF0D0D0D),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-            border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
           ),
           padding: EdgeInsets.only(
             left: 24,
@@ -1691,7 +1673,7 @@ class _PosPageState extends State<PosPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFC5A028).withOpacity(0.1),
+                      color: const Color(0xFFC5A028).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -1778,13 +1760,13 @@ class _PosPageState extends State<PosPage> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: isNegative 
-                                ? Colors.red.withOpacity(0.1) 
-                                : (isWarning ? Colors.orange.withOpacity(0.1) : Colors.white.withOpacity(0.03)),
+                                ? Colors.red.withValues(alpha: 0.1) 
+                                : (isWarning ? Colors.orange.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.03)),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isNegative 
-                                  ? Colors.red.withOpacity(0.3) 
-                                  : (isWarning ? Colors.orange.withOpacity(0.3) : Colors.white.withOpacity(0.05)),
+                                  ? Colors.red.withValues(alpha: 0.3) 
+                                  : (isWarning ? Colors.orange.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.05)),
                             ),
                           ),
                           child: Column(
@@ -1800,7 +1782,7 @@ class _PosPageState extends State<PosPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Column(
@@ -1876,7 +1858,7 @@ class _PosPageState extends State<PosPage> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 11,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
           ),
@@ -1923,10 +1905,10 @@ class _PosPageState extends State<PosPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -1947,7 +1929,7 @@ class _PosPageState extends State<PosPage> {
                     ),
                     Text(
                       message,
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                     ),
                   ],
                 ),
@@ -1959,6 +1941,7 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
+  // ignore: unused_element
   void _showStaffSelectionForACuenta(BuildContext context, PosState state) async {
     // We need to fetch barbers from UserBloc or DB
     final db = await DatabaseHelper().database;
@@ -2237,6 +2220,7 @@ class _PosPageState extends State<PosPage> {
     );
   }
 
+  // ignore: unused_element
   void _showSettleConfirmation(BuildContext context, String userName) {
     showDialog(
       context: context,
@@ -2250,7 +2234,7 @@ class _PosPageState extends State<PosPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.cleaning_services_rounded, color: Colors.redAccent, size: 24),
@@ -2278,7 +2262,7 @@ class _PosPageState extends State<PosPage> {
             const SizedBox(height: 16),
             Text(
               'Esta acción marcará todos los gastos pendientes como PAGADOS y el contador volverá a cero.',
-              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13, height: 1.5),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, height: 1.5),
             ),
           ],
         ),
@@ -2332,7 +2316,7 @@ class _CartQtyButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFC5A028).withOpacity(0.12),
+          color: const Color(0xFFC5A028).withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, size: 14, color: const Color(0xFFC5A028)),
@@ -2365,16 +2349,16 @@ class _PaymentMethodButton extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border.all(
             color: isSecondary 
-                ? Colors.white.withOpacity(0.05)
-                : const Color(0xFFC5A028).withOpacity(0.15),
+                ? Colors.white.withValues(alpha: 0.05)
+                : const Color(0xFFC5A028).withValues(alpha: 0.15),
           ),
           borderRadius: BorderRadius.circular(20),
           color: isSecondary 
-              ? Colors.black.withOpacity(0.3)
-              : const Color(0xFFC5A028).withOpacity(0.05),
+              ? Colors.black.withValues(alpha: 0.3)
+              : const Color(0xFFC5A028).withValues(alpha: 0.05),
           boxShadow: isSecondary ? [] : [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

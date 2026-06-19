@@ -29,17 +29,7 @@ class _CustomersPageState extends State<CustomersPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Gestión de Clientes'),
-            if (isAdmin)
-              const Text(
-                'MODO OBSERVADOR',
-                style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold),
-              ),
-          ],
-        ),
+        title: const Text('Gestión de Clientes'),
       ),
       body: BlocConsumer<CustomerBloc, CustomerState>(
         listenWhen: (previous, current) => previous.status != current.status,
@@ -84,13 +74,13 @@ class _CustomersPageState extends State<CustomersPage> {
                 subtitle: Text(
                   '${customer.phone ?? 'Sin teléfono'} | Puntos: ${customer.points}',
                 ),
-                onTap: isAdmin ? null : () => _showCustomerDialog(context, customer: customer),
+                onTap: () => _showCustomerDialog(context, customer: customer),
               );
             },
           );
         },
       ),
-      floatingActionButton: isAdmin ? null : FloatingActionButton(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showCustomerDialog(context),
         child: const Icon(Icons.person_add),
       ),

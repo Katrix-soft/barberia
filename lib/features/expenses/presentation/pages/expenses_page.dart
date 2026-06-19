@@ -96,24 +96,6 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
             return Column(
               children: [
-                if (isAdmin)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    color: Colors.blue.withOpacity(0.1),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.visibility, color: Colors.blue, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'MODO OBSERVADOR: No puedes modificar los gastos.',
-                            style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 _buildSummaryHeader(pending),
                 Expanded(
                   child: state.expenses.isEmpty
@@ -132,7 +114,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           },
         ),
       ),
-      floatingActionButton: isAdmin ? null : FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddExpenseDialog(context),
         backgroundColor: const Color(0xFFC5A028),
         foregroundColor: Colors.white,
@@ -147,7 +129,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFC5A028).withOpacity(0.1),
+        color: const Color(0xFFC5A028).withValues(alpha: 0.1),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
       child: Column(
@@ -203,7 +185,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: isConsumption ? Colors.orange.withOpacity(0.05) : null,
+      color: isConsumption ? Colors.orange.withValues(alpha: 0.05) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: isConsumption ? const BorderSide(color: Colors.orange, width: 0.5) : BorderSide.none,
@@ -217,7 +199,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 (expense.isPaid
                         ? Colors.green
                         : (isOverdue ? Colors.red : const Color(0xFFC5A028)))
-                    .withOpacity(0.1),
+                    .withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -249,10 +231,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 color: Color(0xFFC5A028),
               ),
             ),
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: (isConsumption || isAdmin)
-                ? null // "A cuenta" items and Admin-observer are read-only
+            const SizedBox(height: 4),             GestureDetector(
+              onTap: isConsumption
+                ? null // "A cuenta" items are read-only
                 : () => context.read<ExpenseBloc>().add(
                     ToggleExpensePaidEvent(expense),
                   ),
@@ -260,8 +241,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: expense.isPaid
-                      ? Colors.green.withOpacity(0.1)
-                      : (isConsumption ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : (isConsumption ? Colors.orange.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -276,7 +257,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
             ),
           ],
         ),
-        onLongPress: (isConsumption || isAdmin) ? null : () => _showDeleteConfirm(expense),
+        onLongPress: isConsumption ? null : () => _showDeleteConfirm(expense),
       ),
     );
   }

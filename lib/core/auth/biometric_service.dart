@@ -1,30 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:local_auth/local_auth.dart';
-
-class BiometricService {
-  final LocalAuthentication _auth = LocalAuthentication();
-
-  Future<bool> get isAvailable async {
-    if (kIsWeb) return false;
-    
-    final canCheckBiometrics = await _auth.canCheckBiometrics;
-    final isDeviceSupported = await _auth.isDeviceSupported();
-    return canCheckBiometrics && isDeviceSupported;
-  }
-
-  Future<bool> authenticate() async {
-    if (kIsWeb) return false;
-
-    try {
-      return await _auth.authenticate(
-        localizedReason: 'Autenticá con huella o Face ID',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
-      );
-    } catch (e) {
-      return false;
-    }
-  }
-}
+// Este archivo ahora es solo un re-export de conveniencia.
+// La lógica real vive en el paquete katrix_biometrics.
+export 'package:katrix_biometrics/katrix_biometrics.dart';

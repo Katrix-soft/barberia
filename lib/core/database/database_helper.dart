@@ -335,6 +335,15 @@ class DatabaseHelper {
       }
       debugPrint('[DB] Migration v30: campos QR agregados a sales.');
     }
+
+    if (oldVersion < 31) {
+      try {
+        await db.execute('ALTER TABLE appointments ADD COLUMN barber_name TEXT DEFAULT NULL');
+        debugPrint('[DB] Migration v31: columna barber_name agregada a appointments.');
+      } catch (e) {
+        debugPrint('[DB] v31: barber_name ya existe o error: $e');
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -493,6 +502,7 @@ class DatabaseHelper {
           customer_name TEXT NOT NULL,
           service_id INTEGER,
           service_name TEXT NOT NULL,
+          barber_name TEXT DEFAULT NULL,
           date_time TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
           notes TEXT,
